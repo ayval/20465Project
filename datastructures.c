@@ -17,10 +17,8 @@ int pushLabel(Label** head, char *newLabelName, int newLabelAddress)
 	/*Insert the data*/
  	strcpy(newLabel->name,newLabelName);
 	newLabel->address=newLabelAddress;
-	
 	/*Change next of new node as head */
 	newLabel->next = (*head);
-  
 	/*Move the head to point to the new node */
 	(*head) = newLabel;
 
@@ -71,6 +69,7 @@ void printLabels(Label **head) {
 	}
 }
 
+/*
 int main() {
 	Label *head=NULL;
 	int i = 0;
@@ -81,4 +80,4 @@ int main() {
 	i = getAddressByName(&head, "y");
 	printLabels(&head);
 }
-
+*/

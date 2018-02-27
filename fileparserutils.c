@@ -48,11 +48,14 @@ Directive getDirective(char *stringToParse) {
 	if (! strcmp(stringToParse,".string"))
 		return StringDirective;
 
-	if (! strcmp(stringToParse,".data"))
+	if (! strcmp(stringToParse,".struct"))
 		return StructDirective;
 
-	if (! strcmp(stringToParse,".data"))
+	if (! strcmp(stringToParse,".entry"))
 		return EntryDirective;
+	
+	if (! strcmp(stringToParse,".extern"))
+		return ExternalDirective;
 	return FALSE;
 }
 
@@ -61,9 +64,12 @@ int isLabel(char *stringToParse) {
 	/*protect againt empty string*/
 	if (!stringToParse[0])
 		return FALSE;
+	/*first character must be alphanumberic*/
+	if (!isalpha(stringToParse[0]))
+		return FALSE;
 	/*find first non uppercase char*/
 	do {	
-		if(! isupper(stringToParse[i])) {
+		if(! isalnum(stringToParse[i])) {
 			break;
 			}
 		i++;
@@ -74,6 +80,21 @@ int isLabel(char *stringToParse) {
 		return TRUE;
 	return FALSE;
 }
+
+int getNextToken(char *token, char *line) {
+	int tokenIndex=0;
+	int lineIndex=0;
+	while(isspace(line[lineIndex]))
+		lineIndex++;
+	while(!line[lineIndex]=='\0' && !isspace(line[lineIndex])) {
+		token[tokenIndex]=line[lineIndex];
+		tokenIndex++;
+		lineIndex++;
+	}
+	token[tokenIndex]='\0';
+	return lineIndex;
+}
+
 
 Operation getOperationFromToken(char *stringToParse) {
 	if (! strcmp(stringToParse,"mov"))
@@ -111,6 +132,25 @@ Operation getOperationFromToken(char *stringToParse) {
 	return error;
 }
 
+
+int stringToCommand(char *string, Command *command) {
+	
+	return TRUE;
+
+}
+
+
+int getLengthGroup2Operators(char *command) {
+
+	return 1;
+
+}
+
+/*group 3 have no operands so their length is always 1 word (muzar word - 10bits)*/
+int getLengthG3Ops() {
+	int length=1;
+	return length;
+}
 
 /*
 int main(){

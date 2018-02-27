@@ -6,3 +6,7 @@ typedef struct label {
 	struct label *next;
 } Label;
 
+int pushLabel(Label** head, char *newLabelName, int newLabelAddress);
+int getAddressByName(Label **head, char *nameToSearch);
+int safePushLabel(Label **head, char *newLabelName, int newLabelAddress);
+void printLabels(Label **head);
