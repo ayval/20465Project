@@ -13,7 +13,7 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	char mLabelName[MAXSTRLEN];
 	int lineDelta=0;;
 	int tempLineDelta=0;
-
+	char tempString[MAXSTRLEN];
 	/*flags*/
 	/*Flag that indicates a label*/
 	int labelFlag = FALSE;
@@ -27,6 +27,7 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	/*stage 2 - read next line from file*/
 	while (fgets(line, MAXSTRLEN, aFile)) {
 		lineDelta=0;
+		printf("DC=%d IC=%d\n",DC,IC);
 		printf("---------------------\n %s---------------------\n",line);
 		/*stage 3 - is the first item a label?*/
 		tempLineDelta = getNextToken(token,line);
@@ -52,7 +53,12 @@ int firstPass(FILE *aFile , Label **labelsList) {
 					errorFlag = ! safePushLabel(labelsList, mLabelName, DC);
 				}
 			/*stage 7 - calculate data length and update update DC*/
-				printf("Data to parse: %s\n",line+lineDelta);
+				printf("Data to parse: \"%s\"\n",line+lineDelta);
+				strcpy(tempString, line+lineDelta);
+				if (mDirective==DataDirective) {
+					printf("Going to analyze the data\n");
+					DC+=getDataLength(tempString);
+				}
 			}
 			/*stage 8*/
 			if (mDirective==ExternalDirective) {

@@ -41,3 +41,4 @@ int isNumber(char *stringToParse);
 int isComment(char *stringToParse);
 int isLabel(char *stringToParse);
 int getNextToken(char *token, char *line);
+int getDataLength(char *dataToParse);

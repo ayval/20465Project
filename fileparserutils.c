@@ -24,19 +24,31 @@ int isNumber(char *stringToParse) {
 	/*check null*/
 	if (! stringToParse)
 		return FALSE;
+	/*ignore leading whitespaces*/
+	while (isspace(stringToParse[i]))
+		i++;
 	/*check for sign*/
-	if ((stringToParse[0]=='+') || (stringToParse[0]=='-')) {
-		/*second char must be digit if the first was a sign*/
-		if (! isdigit(stringToParse[1]))
+	if ((stringToParse[i]=='+') || (stringToParse[i]=='-')) {
+		/*second char must be digit if the first was a sign, safe since at the worst case its \0*/
+		if (! isdigit(stringToParse[i+1])){
 			return FALSE;
+		}
 		i++; /*start checking only from the second if there is a sign*/
 	}
 	/*check the rest of the chars for digits*/
 	while(stringToParse[i]) {
-		if (! isdigit(stringToParse[i]))
-			return FALSE;
-		i++;
+		if (isdigit(stringToParse[i]))
+			i++;
+		else break;
 	}
+	if (! stringToParse[i])
+		return TRUE;
+	/*ignore trailing whitespaces*/
+	while(stringToParse[i])
+		if(isspace(stringToParse[i]))
+			i++;
+		else
+			return FALSE;
 	return TRUE;
 }
 
@@ -139,6 +151,36 @@ int stringToCommand(char *string, Command *command) {
 
 }
 
+int getDataLength(char *dataToParse) {
+	char *token;
+	char s[2]=",";
+	int counter=0;
+	if (!dataToParse || dataToParse[0]=='\0')
+		return FALSE;
+	token = strtok(dataToParse,s);
+	if (isNumber(token)) {
+		counter++;
+	} else {
+		return FALSE;
+	}
+	
+	while (token != NULL) {
+		token = strtok(NULL, s);
+
+		if (isNumber(token)) {
+			counter++;
+		} else {
+			if (! token=='\0') {
+				return FALSE;
+			}
+		}
+	}
+	return counter;
+}
+
+
+
+
 
 int getLengthGroup2Operators(char *command) {
 
@@ -154,19 +196,6 @@ int getLengthG3Ops() {
 
 /*
 int main(){
-	Operation op;
-	char teststr[] = "mov";
-	if (isLabel(teststr))
-		printf("This is a label\n");
-	else 
-		printf("This is not a label\n");
-
-	op = getOperationFromToken("prn");	
-	if (op)
-			printf("this is an op: %d\n",op);
-	else
-		printf("This is not an op\n");
-
 	if (isNumber("123"))
 		printf("123 is a number\n");
 	if (isNumber("+123"))
@@ -178,7 +207,8 @@ int main(){
 	if(isNumber("3+3"))
 		printf("3+3 is a number\n");
 
+	if(isNumber("       33     3  "))
+		printf("33 is a number\n");
 	return 1;
 }
 */
-
