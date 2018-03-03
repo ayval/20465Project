@@ -35,10 +35,25 @@ typedef struct command {
 	int type;
 } Command;
 
+typedef struct aStruct {
+	char data[MAXOPERANDLENGTH];
+	int number;
+	int length;
+} AStruct;
+
+typedef struct aData {
+	int data[80];
+	int length;
+} AData;
+
+
 Directive getDirective(char *stringToParse);
 Operation getOperationFromToken(char *stringToParse);
 int isNumber(char *stringToParse);
 int isComment(char *stringToParse);
 int isLabel(char *stringToParse);
 int getNextToken(char *token, char *line);
-int getDataLength(char *dataToParse);
+int cleanString(char *cleanStr, char *strToClean);
+int getData(AData *dataToReturn, char *dataToParse);
+int getStringLength(char *stringToParse);
+int getStruct(char *stringToParse, AStruct structToReturn);

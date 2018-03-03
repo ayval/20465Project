@@ -3,6 +3,8 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+
 
 
 
@@ -151,23 +153,29 @@ int stringToCommand(char *string, Command *command) {
 
 }
 
-int getDataLength(char *dataToParse) {
+/*builds a data struct from the operands list. Returns  FALSE if n0t valid*/
+int getData(AData *dataToReturn, char *dataToParse) {
 	char *token;
 	char s[2]=",";
 	int counter=0;
+	/*safe check*/
 	if (!dataToParse || dataToParse[0]=='\0')
 		return FALSE;
+	/*break the data to different tokens*/
 	token = strtok(dataToParse,s);
+	/*firts token*/
 	if (isNumber(token)) {
+		dataToReturn->data[counter]=atoi(token);
 		counter++;
 	} else {
 		return FALSE;
 	}
-	
+	/*rest of the tokens*/
 	while (token != NULL) {
 		token = strtok(NULL, s);
 
 		if (isNumber(token)) {
+			dataToReturn->data[counter]=atoi(token);
 			counter++;
 		} else {
 			if (! token=='\0') {
@@ -175,11 +183,104 @@ int getDataLength(char *dataToParse) {
 			}
 		}
 	}
-	return counter;
+	dataToReturn->length=counter;
+	return TRUE;
+}
+
+int cleanString(char *cleanStr, char *strToClean) {
+	int i=0;
+	int j=0;
+	/*sanity check for null pointer*/
+	if (! strToClean)
+		return FALSE;
+	/*ignore leading white spaces*/
+	while(isspace(strToClean[i]))
+		i++;
+	/*first char should be "*/
+	if (strToClean[i]!='"')
+		return FALSE;
+	i++;
+	while (strToClean[i]!='"') {
+		/*string terminator before closing string*/
+		if (strToClean=='\0')
+			return FALSE;
+		cleanStr[j]=strToClean[i];
+		i++;
+		j++;
+	}
+	cleanStr[j]='\0';
+	/*add code to check if any remaining string*/
+	return TRUE;
+}
+
+/*returns the string length including endung null or -1 not a string*/
+int getStringLength(char *stringToParse) {
+	/*ignore leading spaces*/
+	int i=0;
+	int j=0; /*leading spaces counter*/
+	while(isspace(stringToParse[i])) {
+		i++;
+		j++;
+		printf("char#: %d",i); 
+	}
+	/*first char must be "*/
+	if (stringToParse[i]!='"')
+		return -1;
+	i++;
+	while(stringToParse[i]!='\0' && stringToParse[i]!='"') {
+		printf("char#: %d",i); 
+		i++;
+	}
+	if (stringToParse[i]=='\0')
+		return -1;
+	return i-j;
 }
 
 
 
+
+/*Just splits a string to two parts, before and after comma. If no comma, returns false*/
+int splitStruct(char *structString, char *firstPart, char *secondPart) {
+	int i=0;
+	int j=0;
+	/*copy the fits part*/
+	while (structString[i]!=',' && structString[i]!='\0'){
+		firstPart[i]=structString[i];
+		i++;
+	}
+	/*sanity check that there are 2 parts*/
+	if (structString[i]=='\0')
+		return FALSE;
+	/*add the null on account of the comma*/
+	firstPart[i]='\0';
+	i++;
+	/*copy the second part*/
+	while(structString[i]!='\0') {
+		secondPart[j]=structString[i];
+		i++;
+		j++;
+	}
+	return TRUE;
+}
+
+int getStruct(char *structToParse, AStruct structToReturn) {
+	/*ignore leading spaces*/
+	int error;
+	char numStr[MAXSTRLEN];
+	char strStr[MAXSTRLEN];
+	error = splitStruct(structToParse, numStr, strStr);
+	if (! error) 
+		return FALSE;
+	error = cleanString(structToReturn.data, strStr);
+	if (! error)
+		return FALSE;
+	if (! isNumber(numStr))
+		return FALSE;
+	structToReturn.number=atoi(numStr);
+	/*the struct data length is the string + 1 for terminator and 1 for the number*/
+	structToReturn.length = strlen(structToReturn.data) +2;
+	return TRUE;
+}
 
 
 int getLengthGroup2Operators(char *command) {

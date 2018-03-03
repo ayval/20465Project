@@ -11,9 +11,13 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	char line[MAXSTRLEN];
 	char token[MAXSTRLEN];
 	char mLabelName[MAXSTRLEN];
-	int lineDelta=0;;
+	int lineDelta=0;
 	int tempLineDelta=0;
+	int lineNumber=0;
+	AStruct analyzedStruct;
+	AData analyzedData;
 	char tempString[MAXSTRLEN];
+	char operandsToParse[MAXSTRLEN];
 	/*flags*/
 	/*Flag that indicates a label*/
 	int labelFlag = FALSE;
@@ -23,12 +27,13 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	/*stage 1 - init instruction ocunter and data counter*/
 	int IC=0;
 	int DC=0;
-	int L=0;
+	/*int L=0;*/
 	/*stage 2 - read next line from file*/
 	while (fgets(line, MAXSTRLEN, aFile)) {
 		lineDelta=0;
+		lineNumber++;
 		printf("DC=%d IC=%d\n",DC,IC);
-		printf("---------------------\n %s---------------------\n",line);
+		printf("-----------------------------------------------------\n%s",line);
 		/*stage 3 - is the first item a label?*/
 		tempLineDelta = getNextToken(token,line);
 		if (isLabel(token)) {
@@ -46,18 +51,33 @@ int firstPass(FILE *aFile , Label **labelsList) {
 		if (mDirective) {
 			lineDelta+=tempLineDelta;
 			if (mDirective==DataDirective || mDirective==StringDirective || mDirective==StructDirective) {
-				printf("This is a directive: %s of type:%d\n",token, mDirective);
+				printf("Directive=%s of type:%d ",token, mDirective);
 				/*stage 6 - if there is a label, add it to the list*/
 				if (labelFlag) {
 					/*update error flag according to result of PushLabel*/
 					errorFlag = ! safePushLabel(labelsList, mLabelName, DC);
 				}
 			/*stage 7 - calculate data length and update update DC*/
-				printf("Data to parse: \"%s\"\n",line+lineDelta);
-				strcpy(tempString, line+lineDelta);
+				printf("Operands: %s",line+lineDelta);
+				strcpy(operandsToParse, line+lineDelta);
 				if (mDirective==DataDirective) {
-					printf("Going to analyze the data\n");
-					DC+=getDataLength(tempString);
+					errorFlag = ! getData(&analyzedData, operandsToParse);
+					DC+=analyzedData.length;
+				}
+				if (mDirective==StringDirective) {
+					if (! cleanString(tempString,operandsToParse)) {
+						errorFlag = TRUE;
+					}
+					DC+=strlen(tempString);
+					DC++; /*to count the string terminator*/
+				}
+				if (mDirective==StructDirective) {
+					errorFlag = getStruct(tempString, analyzedStruct);
+					DC+=analyzedStruct.length;
+				}
+				if (errorFlag) {
+					printf("Error: Aborting current parsing at line %d.Illegal directive operands: %s\n",lineNumber,operandsToParse );
+					break;
 				}
 			}
 			/*stage 8*/
@@ -83,6 +103,7 @@ int firstPass(FILE *aFile , Label **labelsList) {
 			break;
 		}	
 	}
+	return errorFlag;
 }
 
 
