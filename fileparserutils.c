@@ -1,58 +1,10 @@
 #include "./fileparserutils.h"
+#include "./stringparserutils.h"
 #include "./globaldefs.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-
-
-
-
-int isComment(char *stringToParse) {
-	/*check null*/
-	if (! stringToParse)
-		return FALSE;
-	/*check first char is #*/
-	if (stringToParse[0]==COMMENTCHAR) {
-		return TRUE;
-	}
-	/*not a comment*/
-	return FALSE;
-}
-
-int isNumber(char *stringToParse) {
-	int i=0;
-	/*check null*/
-	if (! stringToParse)
-		return FALSE;
-	/*ignore leading whitespaces*/
-	while (isspace(stringToParse[i]))
-		i++;
-	/*check for sign*/
-	if ((stringToParse[i]=='+') || (stringToParse[i]=='-')) {
-		/*second char must be digit if the first was a sign, safe since at the worst case its \0*/
-		if (! isdigit(stringToParse[i+1])){
-			return FALSE;
-		}
-		i++; /*start checking only from the second if there is a sign*/
-	}
-	/*check the rest of the chars for digits*/
-	while(stringToParse[i]) {
-		if (isdigit(stringToParse[i]))
-			i++;
-		else break;
-	}
-	if (! stringToParse[i])
-		return TRUE;
-	/*ignore trailing whitespaces*/
-	while(stringToParse[i])
-		if(isspace(stringToParse[i]))
-			i++;
-		else
-			return FALSE;
-	return TRUE;
-}
 
 
 Directive getDirective(char *stringToParse) {
@@ -71,42 +23,6 @@ Directive getDirective(char *stringToParse) {
 	if (! strcmp(stringToParse,".extern"))
 		return ExternalDirective;
 	return FALSE;
-}
-
-int isLabel(char *stringToParse) {
-	int i=0;
-	/*protect againt empty string*/
-	if (!stringToParse[0])
-		return FALSE;
-	/*first character must be alphanumberic*/
-	if (!isalpha(stringToParse[0]))
-		return FALSE;
-	/*find first non uppercase char*/
-	do {	
-		if(! isalnum(stringToParse[i])) {
-			break;
-			}
-		i++;
-	} while(stringToParse[i]);
-
-	/*if the first non uppercase char is ':' and it is also the last in the string, this is a lable*/
-	if (stringToParse[i]==':' && i+1==strlen(stringToParse))
-		return TRUE;
-	return FALSE;
-}
-
-int getNextToken(char *token, char *line) {
-	int tokenIndex=0;
-	int lineIndex=0;
-	while(isspace(line[lineIndex]))
-		lineIndex++;
-	while(!line[lineIndex]=='\0' && !isspace(line[lineIndex])) {
-		token[tokenIndex]=line[lineIndex];
-		tokenIndex++;
-		lineIndex++;
-	}
-	token[tokenIndex]='\0';
-	return lineIndex;
 }
 
 
@@ -146,14 +62,133 @@ Operation getOperationFromToken(char *stringToParse) {
 	return error;
 }
 
+Reg getRegisterFromToken(char *stringToParse) {
+	if (! strcmp(stringToParse, "r1"))
+		return r1;
+	if (! strcmp(stringToParse, "r2"))
+		return r2;
+	if (! strcmp(stringToParse, "r3"))
+		return r3;
+	if (! strcmp(stringToParse, "r4"))
+		return r4;
+	if (! strcmp(stringToParse, "r5"))
+		return r5;
+	if (! strcmp(stringToParse, "r6"))
+		return r6;
+	if (! strcmp(stringToParse, "r7"))
+		return r7;
+	return regerror;
+}
 
-int stringToCommand(char *string, Command *command) {
-	
+
+int getCommand(char *stringToParse, Command *command) {
+	char checkStr[MAXSTRLEN];
+	Operation opToCheck;
+	int i=0;
+	int j=0;
+	char tempStr[MAXSTRLEN];
+	/*sanity check*/
+	if (! stringToParse || ! command)
+		return FALSE;
+	clearCommand(command);
+	/*ignore leading white spaces*/
+	while (isspace(stringToParse[i]))
+		i++;
+	/*copy the first word as the command and leave the rest as operands*/
+	while (stringToParse[i] && ! isspace(stringToParse[i])) {
+		checkStr[j]=stringToParse[i];
+		i++;
+		j++;
+	}
+	checkStr[j]='\0';
+	opToCheck = getOperationFromToken(checkStr);
+	if (opToCheck==error)
+		return FALSE;
+	command->op = opToCheck;
+	/*get the first operand*/
+	j=0;
+	while (stringToParse[i]!='\0' && stringToParse[i]!=',') {
+		tempStr[j]=stringToParse[i];
+		i++;
+		j++;
+	}
+	cleanFromSpaces(command->Operand1.rawData,tempStr);
+	if (stringToParse[i]=='\0') {
+		command->operandNum=1;
+		return TRUE;
+	}
+
+	/*get the second operand*/
+	j=0;
+	i++;
+	memset(tempStr,'\0',MAXSTRLEN);
+	while (stringToParse[i]!='\0' && stringToParse[i]!=',') {
+		/*command->Operand2.rawData[j]*/
+
+		tempStr[j]=stringToParse[i];
+		i++;
+		j++;
+	}
+	cleanFromSpaces(command->Operand2.rawData,tempStr);
+	/*check for remaining data*/
+	while(!stringToParse[i]=='\0' || isspace(stringToParse[i]))
+		i++;
+	if (!stringToParse[i]=='\0') {
+		printf("RESIDUE!!!\n");
+		return FALSE;
+	}
+	command->operandNum=2;
 	return TRUE;
+}
+
+int enrichOperand(Operand *operand) {
+	if (! operand)
+		return FALSE;
+	/*check if the operand is a register and return which*/
+	operand->regValue = getRegisterFromToken(operand->rawData);
+	if (operand->regValue!=regerror) {
+		operand->oprType=reg;
+	}
+	return TRUE;
+}
+
+int clearCommand(Command *command) {
+	if (!command)
+		return FALSE;
+	command->op=error;
+	command->Operand1.oprType=operror;
+	command->Operand2.oprType=operror;
+	command->Operand1.intValue=0;
+	command->Operand2.intValue=0;
+	memset(command->Operand1.rawData,'\0',MAXOPERANDLENGTH);
+	memset(command->Operand2.rawData,'\0',MAXOPERANDLENGTH);
+	command->type=operror;
+    command->operandNum=0;
+    return TRUE;
+}
+
+int enrichCommand(Command *command) {
+	/*enrich the operands and sanity check those are not null pointers*/
+	if (! enrichOperand(&command->Operand1))
+		return FALSE;
+	if (! enrichOperand(&command->Operand1))
+		return FALSE;
+	return TRUE;
+}
+
+/*for debugging only - print the command in human readable way*/
+void printCommand(Command *command) {
+	printf("Operation: %d   NumOfOperands=%d, Operand1: '%s'    Operand2: '%s' \n", command->op
+		, command->operandNum, command->Operand1.rawData, command->Operand2.rawData);
+	if (command->Operand1.oprType == reg)
+		printf("Operand1: register:%d",command->Operand1.regValue);
+	if (command->Operand2.oprType ==reg)
+		printf("Operand2: register:%d",command->Operand2.regValue);
+
 
 }
 
-/*builds a data struct from the operands list. Returns  FALSE if n0t valid*/
+/*builds a data struct from the data list operands list. Returns  FALSE if n0t valid*/
 int getData(AData *dataToReturn, char *dataToParse) {
 	char *token;
 	char s[2]=",";
@@ -187,81 +222,6 @@ int getData(AData *dataToReturn, char *dataToParse) {
 	return TRUE;
 }
 
-int cleanString(char *cleanStr, char *strToClean) {
-	int i=0;
-	int j=0;
-	/*sanity check for null pointer*/
-	if (! strToClean)
-		return FALSE;
-	/*ignore leading white spaces*/
-	while(isspace(strToClean[i]))
-		i++;
-	/*first char should be "*/
-	if (strToClean[i]!='"')
-		return FALSE;
-	i++;
-	while (strToClean[i]!='"') {
-		/*string terminator before closing string*/
-		if (strToClean=='\0')
-			return FALSE;
-		cleanStr[j]=strToClean[i];
-		i++;
-		j++;
-	}
-	cleanStr[j]='\0';
-	/*add code to check if any remaining string*/
-	return TRUE;
-}
-
-/*returns the string length including endung null or -1 not a string*/
-int getStringLength(char *stringToParse) {
-	/*ignore leading spaces*/
-	int i=0;
-	int j=0; /*leading spaces counter*/
-	while(isspace(stringToParse[i])) {
-		i++;
-		j++;
-		printf("char#: %d",i); 
-	}
-	/*first char must be "*/
-	if (stringToParse[i]!='"')
-		return -1;
-	i++;
-	while(stringToParse[i]!='\0' && stringToParse[i]!='"') {
-		printf("char#: %d",i); 
-		i++;
-	}
-	if (stringToParse[i]=='\0')
-		return -1;
-	return i-j;
-}
-
-
-
-
-/*Just splits a string to two parts, before and after comma. If no comma, returns false*/
-int splitStruct(char *structString, char *firstPart, char *secondPart) {
-	int i=0;
-	int j=0;
-	/*copy the fits part*/
-	while (structString[i]!=',' && structString[i]!='\0'){
-		firstPart[i]=structString[i];
-		i++;
-	}
-	/*sanity check that there are 2 parts*/
-	if (structString[i]=='\0')
-		return FALSE;
-	/*add the null on account of the comma*/
-	firstPart[i]='\0';
-	i++;
-	/*copy the second part*/
-	while(structString[i]!='\0') {
-		secondPart[j]=structString[i];
-		i++;
-		j++;
-	}
-	return TRUE;
-}
 
 int getStruct(char *structToParse, AStruct structToReturn) {
 	/*ignore leading spaces*/
@@ -282,34 +242,3 @@ int getStruct(char *structToParse, AStruct structToReturn) {
 	return TRUE;
 }
 
-
-int getLengthGroup2Operators(char *command) {
-
-	return 1;
-
-}
-
-/*group 3 have no operands so their length is always 1 word (muzar word - 10bits)*/
-int getLengthG3Ops() {
-	int length=1;
-	return length;
-}
-
-/*
-int main(){
-	if (isNumber("123"))
-		printf("123 is a number\n");
-	if (isNumber("+123"))
-		printf("+123 is a number\n");
-	if(isNumber("-123"))
-		printf("-123 is a number\n");
-	if(isNumber("33b"))
-		printf("33b is a number\n");
-	if(isNumber("3+3"))
-		printf("3+3 is a number\n");
-
-	if(isNumber("       33     3  "))
-		printf("33 is a number\n");
-	return 1;
-}
-*/

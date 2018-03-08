@@ -28,11 +28,39 @@ typedef enum operation {
         stop=15
 } Operation;
 
+typedef enum reg {
+        r0=0,
+        r1=1,
+        r2=2,
+        r3=3,
+        r4=4,
+        r5=5,
+        r6=6,
+        r7=7,
+        regerror=8
+} Reg;
+
+typedef enum operandType {
+        reg=1,
+        label=2,
+        structtype=3,
+        number=4,
+        operror=0
+} OperandType;
+
+typedef struct operand {
+        char rawData[MAXOPERANDLENGTH];
+        OperandType oprType;
+        int intValue;
+        Reg regValue;
+} Operand;
+
 typedef struct command {
 	Operation op;
-	char Operand1[MAXOPERANDLENGTH];
-	char Operand2[MAXOPERANDLENGTH];
+	Operand Operand1;
+	Operand Operand2;
 	int type;
+        int operandNum;
 } Command;
 
 typedef struct aStruct {
@@ -49,11 +77,10 @@ typedef struct aData {
 
 Directive getDirective(char *stringToParse);
 Operation getOperationFromToken(char *stringToParse);
-int isNumber(char *stringToParse);
-int isComment(char *stringToParse);
-int isLabel(char *stringToParse);
-int getNextToken(char *token, char *line);
-int cleanString(char *cleanStr, char *strToClean);
 int getData(AData *dataToReturn, char *dataToParse);
-int getStringLength(char *stringToParse);
 int getStruct(char *stringToParse, AStruct structToReturn);
+int getCommand(char *string, Command *command);
+void printCommand(Command *command);
+int enrichCommand(Command *command);
+int enrichOperand(Operand *operand);
+int clearCommand(Command *command);

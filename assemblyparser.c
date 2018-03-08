@@ -2,6 +2,7 @@
 #include "globaldefs.h"
 #include "fileparserutils.h"
 #include "datastructures.h"
+#include "stringparserutils.h"
 #include <string.h>
 
 int firstPass(FILE *aFile , Label **labelsList) { 
@@ -18,6 +19,7 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	AData analyzedData;
 	char tempString[MAXSTRLEN];
 	char operandsToParse[MAXSTRLEN];
+	Command analyzedCommand;
 	/*flags*/
 	/*Flag that indicates a label*/
 	int labelFlag = FALSE;
@@ -32,6 +34,8 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	while (fgets(line, MAXSTRLEN, aFile)) {
 		lineDelta=0;
 		lineNumber++;
+		if (isComment(line))
+			continue;
 		printf("DC=%d IC=%d\n",DC,IC);
 		printf("-----------------------------------------------------\n%s",line);
 		/*stage 3 - is the first item a label?*/
@@ -95,7 +99,9 @@ int firstPass(FILE *aFile , Label **labelsList) {
 		/*analyze rest of data*/
 		
 		printf("Command to parse: %s\n",line+lineDelta);
-		
+		getCommand(line+lineDelta, &analyzedCommand);
+		enrichCommand(&analyzedCommand);
+		printCommand(&analyzedCommand);
 		/* stage - 15 go back to the next line*/
 		/*zero the relevant flags*/
 		labelFlag=FALSE;
@@ -114,5 +120,6 @@ int main() {
 		printf("The file is null\n");
 	}
 	firstPass(f, &mLabel);
+	printLabels(&mLabel);
 	return 0;
 }
