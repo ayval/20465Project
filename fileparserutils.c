@@ -148,7 +148,19 @@ int enrichOperand(Operand *operand) {
 	operand->regValue = getRegisterFromToken(operand->rawData);
 	if (operand->regValue!=regerror) {
 		operand->oprType=reg;
+		return TRUE;
 	}
+	if (operand->rawData[0]=='#' && isNumber(operand->rawData+1)) {
+		operand->constValue=atof(operand->rawData+1);
+		operand->oprType=number;
+		return TRUE;
+	}
+	operand->structFieldType = isStructField(operand->rawData,operand->structLabel);
+	if (operand->structFieldType) {
+		operand->oprType = structtype;
+		printf("THIS IS A STRUCT\n");
+	}
+
 	return TRUE;
 }
 
@@ -158,10 +170,15 @@ int clearCommand(Command *command) {
 	command->op=error;
 	command->Operand1.oprType=operror;
 	command->Operand2.oprType=operror;
-	command->Operand1.intValue=0;
-	command->Operand2.intValue=0;
+	command->Operand1.constValue=0;
+	command->Operand2.constValue=0;
+	command->Operand1.structFieldType=0;
+	command->Operand2.structFieldType=0;
 	memset(command->Operand1.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.rawData,'\0',MAXOPERANDLENGTH);
+	memset(command->Operand1.structLabel,'\0',MAXOPERANDLENGTH);
+	memset(command->Operand2.structLabel,'\0',MAXOPERANDLENGTH);
+
 	command->type=operror;
     command->operandNum=0;
     return TRUE;
@@ -171,21 +188,79 @@ int enrichCommand(Command *command) {
 	/*enrich the operands and sanity check those are not null pointers*/
 	if (! enrichOperand(&command->Operand1))
 		return FALSE;
-	if (! enrichOperand(&command->Operand1))
+	if (! enrichOperand(&command->Operand2))
 		return FALSE;
 	return TRUE;
 }
 
 /*for debugging only - print the command in human readable way*/
 void printCommand(Command *command) {
-	printf("Operation: %d   NumOfOperands=%d, Operand1: '%s'    Operand2: '%s' \n", command->op
+	printf("Operation: %d   NumOfOperands=%d\n Operand1: '%s'    Operand2: '%s' \n", command->op
 		, command->operandNum, command->Operand1.rawData, command->Operand2.rawData);
 	if (command->Operand1.oprType == reg)
-		printf("Operand1: register:%d",command->Operand1.regValue);
+		printf(" Operand1: register:%d\n ", command->Operand1.regValue);
 	if (command->Operand2.oprType ==reg)
-		printf("Operand2: register:%d",command->Operand2.regValue);
+		printf(" Operand2: register:%d\n ", command->Operand2.regValue);
+	if (command->Operand1.oprType == number)
+		printf(" Operand1: number:%f\n ", command->Operand1.constValue);
+	if (command->Operand2.oprType == number)
+		printf(" Operand2: number:%f\n ", command->Operand2.constValue);
+	if (command->Operand1.oprType == structtype)
+		printf(" Operand1: struct: label:%s field:%d\n", command->Operand1.structLabel, command->Operand1.structFieldType);
+	if (command->Operand2.oprType == structtype)
+		printf(" Operand2: struct: label:%s field:%d\n", command->Operand2.structLabel, command->Operand2.structFieldType);
+}
+
+int validateCommandOperators(Command *command) {
+	return TRUE;
+}
 
 
+/*returns 2 for struct and 1 for all other operand types*/
+int getAdditionalWordCountForOperand(Operand *operand) {
+	if (operand->oprType==structtype)
+		return 2;
+	return 1;
+}
+
+int getAdditionalWordCount(Command *command) {
+	if (requiredOperandNum(command)==0)
+		return 0;
+	if (requiredOperandNum(command)==1)
+		return (getAdditionalWordCountForOperand(&command->Operand1));
+	/*assuming 2 operands*/
+	/*first case is unique - 2 registers*/
+	if (command->Operand1.oprType==reg && command->Operand2.oprType==reg)
+			return 1;
+	/*general case for 2 operands*/
+	return getAdditionalWordCountForOperand(&command->Operand1) + getAdditionalWordCountForOperand(&command->Operand2);
+}
+
+int requiredOperandNum(Command *command) {
+	switch(command->op) {
+		case mov:
+		case cmp:
+		case add:
+		case sub:
+		case lea:
+			return 2;
+		case not:
+		case clr:
+		case inc:
+		case dec:
+		case jmp:
+		case bne:
+		case red:
+		case prn:
+		case jsr:
+			return 1;
+		case stop:
+		case rts:
+			return 0;
+		default:
+			return error;
+	}
+	return error;
 }
 
 /*builds a data struct from the data list operands list. Returns  FALSE if n0t valid*/
@@ -228,7 +303,7 @@ int getStruct(char *structToParse, AStruct structToReturn) {
 	int error;
 	char numStr[MAXSTRLEN];
 	char strStr[MAXSTRLEN];
-	error = splitStruct(structToParse, numStr, strStr);
+	error = splitStructLabel(structToParse, numStr, strStr);
 	if (! error) 
 		return FALSE;
 	error = cleanString(structToReturn.data, strStr);

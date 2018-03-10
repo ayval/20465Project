@@ -48,11 +48,19 @@ typedef enum operandType {
         operror=0
 } OperandType;
 
+typedef enum structField {
+        integerField=1,
+        stringField=2,
+        errorField=0
+} StructField;
+
 typedef struct operand {
         char rawData[MAXOPERANDLENGTH];
         OperandType oprType;
-        int intValue;
+        float constValue;
         Reg regValue;
+        char structLabel[MAXOPERANDLENGTH];
+        StructField structFieldType;
 } Operand;
 
 typedef struct command {
@@ -84,3 +92,4 @@ void printCommand(Command *command);
 int enrichCommand(Command *command);
 int enrichOperand(Operand *operand);
 int clearCommand(Command *command);
+int requiredOperandNum(Command *command);

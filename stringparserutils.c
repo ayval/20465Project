@@ -175,7 +175,28 @@ int splitString(char *structString, char *firstPart, char *secondPart, char deli
 	return TRUE;
 }
 
-int splitStruct(char *structString, char *firstPart, char *secondPart) {
+int splitStructLabel(char *structString, char *firstPart, char *secondPart) {
 	return splitString(structString, firstPart, secondPart, ',');
 }
+
+/* returns the field number. 1 for the string, 2 for the integer, 0 is an error occursed. The structName as a reference
+assumes the stringToParse has been cleaend with no extra spaces*/
+int isStructField(char *stringToParse, char *structName) {
+	int i=0;
+	if (! stringToParse)
+		return FALSE;
+	while (stringToParse[i]!='.' && stringToParse[i]!='\0') {
+		structName[i]=stringToParse[i];
+		i++;
+	}
+	structName[i]='\0';
+	if (stringToParse[i]=='.') {
+		if (stringToParse[i+1]=='1' && stringToParse[i+2]=='\0')
+			return 1;
+		if (stringToParse[i+1]=='2' && stringToParse[i+2]=='\0')
+			return 2;
+	}
+	return FALSE;
+}
+
 
