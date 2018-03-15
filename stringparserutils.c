@@ -5,16 +5,16 @@
 #include<stdio.h> /*remove before submitting*/
 
 
-
+/*checks if the given string is a  valid label with ':'*/
 int isLabel(char *stringToParse) {
 	int i=0;
 	/*protect againt empty string*/
-	if (!stringToParse[0])
+	if (!stringToParse && !stringToParse[0])
 		return FALSE;
-	/*first character must be alphanumberic*/
+	/*first character must be alphabetical*/
 	if (!isalpha(stringToParse[0]))
 		return FALSE;
-	/*find first non uppercase char*/
+	/*find first non alphanumberic char*/
 	do {	
 		if(! isalnum(stringToParse[i])) {
 			break;
@@ -26,6 +26,23 @@ int isLabel(char *stringToParse) {
 	if (stringToParse[i]==':' && i+1==strlen(stringToParse))
 		return TRUE;
 	return FALSE;
+}
+
+
+int isAddress(char *stringToParse) {
+	int i=0;
+	/*protect againt empty string*/
+	if (!stringToParse && !stringToParse[0])
+		return FALSE;
+	if (!isalpha(stringToParse[0]))
+		return FALSE;
+	i++;
+	while(stringToParse[i]!='\0') {
+		if (! isalnum(stringToParse[i]))
+			return FALSE;
+		i++;
+	}
+	return TRUE;
 }
 
 int isComment(char *stringToParse) {
@@ -48,8 +65,8 @@ int isEmpty(char *stringToParse) {
 	while (isspace(stringToParse[i]))
 		i++;
 	if (stringToParse[i]!='\0')
-		return TRUE;
-	return FALSE;
+		return FALSE;
+	return TRUE;
 }
 
 
@@ -116,10 +133,11 @@ int cleanFromSpaces(char *cleanStr, char *strToClean) {
 	int i=0;
 	int j=0;
 	/*sanity check for null pointer*/
-	if (! strToClean)
+	if (! strToClean || strToClean[0]=='\0')
 		return FALSE;
 	/*ignore leading white spaces*/
 	while(!strToClean[i]=='\0' && isspace(strToClean[i])) {
+		printf("%d",i);
 		i++;
 	}
 
@@ -198,5 +216,6 @@ int isStructField(char *stringToParse, char *structName) {
 	}
 	return FALSE;
 }
+
 
 

@@ -4,7 +4,7 @@
 #include<stdlib.h>
 
 /*Adds a new label to the head of the linked list*/
-int pushLabel(Label** head, char *newLabelName, int newLabelAddress)
+int pushLabel(Label** head, char *newLabelName, int newLabelAddress, LabelType lType)
 {
 	/*Allocate memory for the new label*/
 	Label *newLabel = (Label *)malloc(sizeof(Label));
@@ -17,6 +17,7 @@ int pushLabel(Label** head, char *newLabelName, int newLabelAddress)
 	/*Insert the data*/
  	strcpy(newLabel->name,newLabelName);
 	newLabel->address=newLabelAddress;
+	newLabel->type=lType;
 	/*Change next of new node as head */
 	newLabel->next = (*head);
 	/*Move the head to point to the new node */
@@ -47,14 +48,31 @@ int getAddressByName(Label **head, char *nameToSearch) {
 }
 
 /*Safe add of a label. Make sure there are no double references*/
-int safePushLabel(Label **head, char *newLabelName, int newLabelAddress) {
+int safePushLabel(Label **head, char *newLabelName, int newLabelAddress, LabelType lType) {
 	int result;
 	if (! getAddressByName(head, newLabelName))
-		result = pushLabel(head, newLabelName, newLabelAddress);
+		result = pushLabel(head, newLabelName, newLabelAddress, lType);
 	return result;
 }
 
-/*not for product - debug only - print all labels*/
+
+/*update all data labels with constant*/
+int updateDataLabels(Label **head, int IC) {
+	Label *temp;
+	if (*head==NULL) 
+		return FALSE;
+	temp = *head;
+	while (temp) {
+		if (temp->type==data) {
+			temp->address+=IC;
+		}
+		temp=temp->next;
+	}
+	return TRUE;
+}
+
+
+/*not for production - debug only - print all labels*/
 void printLabels(Label **head) {
 	Label *temp;
 	if (*head==NULL) {
@@ -64,7 +82,7 @@ void printLabels(Label **head) {
 	
 	temp = *head;
 	while(temp) {
-		printf("Label:%s Address:%d\n", temp->name, temp->address);
+		printf("Label:%s Address:%d Type: %d\n", temp->name, temp->address, temp->type);
 		temp=temp->next;
 	}
 }

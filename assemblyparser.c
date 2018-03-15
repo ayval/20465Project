@@ -1,11 +1,12 @@
-#include<stdio.h>
+#include <stdio.h>
 #include "globaldefs.h"
 #include "fileparserutils.h"
 #include "datastructures.h"
 #include "stringparserutils.h"
 #include <string.h>
+#include <stdlib.h>
 
-int firstPass(FILE *aFile , Label **labelsList) { 
+int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) { 
 
 	/*internal function variables*/	
 	Directive mDirective;
@@ -15,11 +16,12 @@ int firstPass(FILE *aFile , Label **labelsList) {
 	int lineDelta=0;
 	int tempLineDelta=0;
 	int lineNumber=0;
+	int commandCounter=0;
 	AStruct analyzedStruct;
 	AData analyzedData;
 	char tempString[MAXSTRLEN];
 	char operandsToParse[MAXSTRLEN];
-	Command analyzedCommand;
+	Command *analyzedCommand;
 	/*flags*/
 	/*Flag that indicates a label*/
 	int labelFlag = FALSE;
@@ -35,6 +37,8 @@ int firstPass(FILE *aFile , Label **labelsList) {
 		lineDelta=0;
 		lineNumber++;
 		if (isComment(line))
+			continue;
+		if(isEmpty(line))
 			continue;
 		printf("DC=%d IC=%d\n",DC,IC);
 		printf("-----------------------------------------------------\n%s",line);
@@ -59,7 +63,7 @@ int firstPass(FILE *aFile , Label **labelsList) {
 				/*stage 6 - if there is a label, add it to the list*/
 				if (labelFlag) {
 					/*update error flag according to result of PushLabel*/
-					errorFlag = ! safePushLabel(labelsList, mLabelName, DC);
+					errorFlag = ! safePushLabel(labelsList, mLabelName, DC, data);
 				}
 			/*stage 7 - calculate data length and update update DC*/
 				printf("Operands: %s",line+lineDelta);
@@ -93,33 +97,72 @@ int firstPass(FILE *aFile , Label **labelsList) {
 		}
 		/*stage 11*/
 		if (labelFlag) {
-			errorFlag = ! safePushLabel(labelsList, mLabelName,IC);
+			errorFlag = ! safePushLabel(labelsList, mLabelName,IC,command);
 		}
 		/*stage 12+13*/
 		/*analyze rest of data*/
-		
+		analyzedCommand=(Command*)malloc(sizeof(Command));
 		printf("Command to parse: %s\n",line+lineDelta);
-		getCommand(line+lineDelta, &analyzedCommand);
-		enrichCommand(&analyzedCommand);
-		printCommand(&analyzedCommand);
+		getCommand(line+lineDelta, analyzedCommand);
+		enrichCommand(analyzedCommand);
+		analyzedCommand->IC=IC;
+		printCommand(analyzedCommand);
+		commandList[commandCounter]=analyzedCommand;
+		commandCounter++;
+		IC=IC+1+getAdditionalWordCount(analyzedCommand);
 		/* stage - 15 go back to the next line*/
 		/*zero the relevant flags*/
 		labelFlag=FALSE;
 		if (errorFlag) {
 			break;
-		}	
+		}
+		errorFlag=FALSE;
+	}
+	/*fix the data labels with IC*/
+	if (! errorFlag) {
+		 printf("update data labels here\n");
+		 updateDataLabels(labelsList, IC);
+
 	}
 	return errorFlag;
+}
+
+int parseCommands(Command *commandList[], char binaryCodes[][11]) {
+	char binaryString[50];
+	for (int i=0; i<256; i++) {
+		printf("i=%d\n",i);
+		if (commandList[i]) {
+			memset(binaryString,'\0',50);
+			printf("operation:%d\n",commandList[i]->op);
+			commandToBin(binaryString, commandList[i]);
+			/*copy the command to the command list with its operands. 
+			+j/10 pushes the counter to the next word if needed*/
+			printf("before for\n");
+			for (int j=0; j<strlen(binaryString); j++) {
+				binaryCodes[commandList[i]->IC + j/10][j % 10] = binaryString[j];
+			}
+		}
+	}
+	return TRUE;
 }
 
 
 int main() {
 	Label *mLabel=NULL;
+	Command *commandList[256];
+	char binaryCodes[256][11];
+	memset(binaryCodes,'\0',256*10);
+	for (int i=0; i<256; i++)
+		commandList[i]=NULL;
 	FILE *f = fopen("testdata1.txt","r");
 	if (! f) {
 		printf("The file is null\n");
 	}
-	firstPass(f, &mLabel);
+	firstPass(f, &mLabel, commandList);
+	parseCommands(commandList, binaryCodes);
+	printf("after parse commands\n");
 	printLabels(&mLabel);
+	for (int i=0; i<30; i++)
+		printf("bin command: %s\n",binaryCodes[i]);
 	return 0;
 }

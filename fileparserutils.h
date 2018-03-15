@@ -59,7 +59,7 @@ typedef struct operand {
         OperandType oprType;
         float constValue;
         Reg regValue;
-        char structLabel[MAXOPERANDLENGTH];
+        char label[MAXOPERANDLENGTH];
         StructField structFieldType;
 } Operand;
 
@@ -69,6 +69,7 @@ typedef struct command {
 	Operand Operand2;
 	int type;
         int operandNum;
+        int IC;
 } Command;
 
 typedef struct aStruct {
@@ -93,3 +94,6 @@ int enrichCommand(Command *command);
 int enrichOperand(Operand *operand);
 int clearCommand(Command *command);
 int requiredOperandNum(Command *command);
+int getAdditionalWordCount(Command *command);
+int commandToBin(char *MuzarStr, Command *command);
+int operandToBin(char *returnStr, Operand *operand);

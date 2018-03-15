@@ -1,6 +1,7 @@
 #include "./fileparserutils.h"
 #include "./stringparserutils.h"
 #include "./globaldefs.h"
+#include "./conversions.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -80,7 +81,7 @@ Reg getRegisterFromToken(char *stringToParse) {
 	return regerror;
 }
 
-
+/*get the operator and operands as strings and places them in the command struct*/
 int getCommand(char *stringToParse, Command *command) {
 	char checkStr[MAXSTRLEN];
 	Operation opToCheck;
@@ -142,6 +143,7 @@ int getCommand(char *stringToParse, Command *command) {
 }
 
 int enrichOperand(Operand *operand) {
+	char tempStr[MAXOPERANDLENGTH];
 	if (! operand)
 		return FALSE;
 	/*check if the operand is a register and return which*/
@@ -155,13 +157,22 @@ int enrichOperand(Operand *operand) {
 		operand->oprType=number;
 		return TRUE;
 	}
-	operand->structFieldType = isStructField(operand->rawData,operand->structLabel);
+	operand->structFieldType = isStructField(operand->rawData,operand->label);
+	printf("string to clean:%s\n",operand->rawData);
 	if (operand->structFieldType) {
 		operand->oprType = structtype;
-		printf("THIS IS A STRUCT\n");
+		return TRUE;
 	}
+	strcpy(tempStr,operand->rawData);
+	printf("Checking if is a label\n");
+	if(isAddress(tempStr)) {
+		printf("Its a label!\n");
+		operand->oprType = label;
+		return TRUE;
+	}
+	printf("its not a label!\n");
 
-	return TRUE;
+	return FALSE;
 }
 
 int clearCommand(Command *command) {
@@ -176,8 +187,8 @@ int clearCommand(Command *command) {
 	command->Operand2.structFieldType=0;
 	memset(command->Operand1.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.rawData,'\0',MAXOPERANDLENGTH);
-	memset(command->Operand1.structLabel,'\0',MAXOPERANDLENGTH);
-	memset(command->Operand2.structLabel,'\0',MAXOPERANDLENGTH);
+	memset(command->Operand1.label,'\0',MAXOPERANDLENGTH);
+	memset(command->Operand2.label,'\0',MAXOPERANDLENGTH);
 
 	command->type=operror;
     command->operandNum=0;
@@ -206,9 +217,9 @@ void printCommand(Command *command) {
 	if (command->Operand2.oprType == number)
 		printf(" Operand2: number:%f\n ", command->Operand2.constValue);
 	if (command->Operand1.oprType == structtype)
-		printf(" Operand1: struct: label:%s field:%d\n", command->Operand1.structLabel, command->Operand1.structFieldType);
+		printf(" Operand1: struct: label:%s field:%d\n", command->Operand1.label, command->Operand1.structFieldType);
 	if (command->Operand2.oprType == structtype)
-		printf(" Operand2: struct: label:%s field:%d\n", command->Operand2.structLabel, command->Operand2.structFieldType);
+		printf(" Operand2: struct: label:%s field:%d\n", command->Operand2.label, command->Operand2.structFieldType);
 }
 
 int validateCommandOperators(Command *command) {
@@ -224,10 +235,15 @@ int getAdditionalWordCountForOperand(Operand *operand) {
 }
 
 int getAdditionalWordCount(Command *command) {
+	/* zero operands always returns 0*/
 	if (requiredOperandNum(command)==0)
 		return 0;
-	if (requiredOperandNum(command)==1)
+	/* one operand returns 0 if reg and 1 in other cases*/
+	if (requiredOperandNum(command)==1) {
+		if (command->Operand1.oprType == reg)
+			return 0;
 		return (getAdditionalWordCountForOperand(&command->Operand1));
+	}
 	/*assuming 2 operands*/
 	/*first case is unique - 2 registers*/
 	if (command->Operand1.oprType==reg && command->Operand2.oprType==reg)
@@ -314,6 +330,62 @@ int getStruct(char *structToParse, AStruct structToReturn) {
 	structToReturn.number=atoi(numStr);
 	/*the struct data length is the string + 1 for terminator and 1 for the number*/
 	structToReturn.length = strlen(structToReturn.data) +2;
+	return TRUE;
+}
+
+int getAREBits(Command *command) {
+	return FALSE;
+
+}
+
+
+int commandToBin(char *MuzarStr, Command *command) {
+	char cmdBinStr[MAXBITSINMUZAR]="";
+	char cmdAddStr[MAXBITSINMUZAR]="";
+	char tempStr[20];
+	int addressing=0;
+	/*code the operation to bin*/
+	intToBin(cmdBinStr,command->op,4);
+	strcat(MuzarStr,cmdBinStr);
+	/*code the addressing types*/
+	if (command->operandNum>=1) {
+		if (command->Operand1.oprType==reg)
+			addressing+=3;
+		if (command->Operand1.oprType==structtype)
+			addressing+=2;
+		if (command->Operand1.oprType==label)
+			addressing+=1;
+	}
+	if (command->operandNum==2) {
+			addressing*=4;
+		if (command->Operand2.oprType==reg)
+			addressing+=3;
+		if (command->Operand2.oprType==structtype)
+			addressing+=2;
+		if (command->Operand2.oprType==label)
+			addressing+=1;
+	}
+	printf("addressing is: %d\n",addressing);
+	intToBin(cmdAddStr,addressing,4);
+	strcat(MuzarStr,cmdAddStr);
+	strcat(MuzarStr,"00");
+	if (command->operandNum==0)
+		return TRUE;
+	if (command->operandNum==1) 
+		memset(tempStr,'\0',20);
+		operandToBin(tempStr, &command->Operand1);
+		strcat(MuzarStr,tempStr);
+		return TRUE;
+	return TRUE;
+}
+
+
+int operandToBin(char *returnStr, Operand *operand) {
+	if (operand->oprType==reg) {
+		intToBin(returnStr, operand->regValue, 4);
+		/*0000 padding and ARE=00*/
+		strcat(returnStr, "000000");
+	}
 	return TRUE;
 }
 

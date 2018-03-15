@@ -1,3 +1,6 @@
+typedef char RegisterString[4]; 
+
+
 int isNumber(char *stringToParse);
 int isComment(char *stringToParse);
 int isLabel(char *stringToParse);
@@ -7,3 +10,4 @@ int cleanString(char *cleanStr, char *strToClean);
 int splitStructLabel(char *structString, char *firstPart, char *secondPart);
 int isEmpty(char *stingToParse);
 int cleanFromSpaces(char *cleanStr, char *strToClean);
+int isAddress(char *stringToParse);
