@@ -113,7 +113,7 @@ int cleanString(char *cleanStr, char *strToClean) {
 	while(isspace(strToClean[i]))
 		i++;
 	/*first char should be "*/
-	if (strToClean[i]!='"')
+	if (strToClean[i]!='"') /*two types of parenthesis*/
 		return FALSE;
 	i++;
 	while (strToClean[i]!='"') {
@@ -170,7 +170,7 @@ int cleanFromSpaces(char *cleanStr, char *strToClean) {
 	return TRUE;
 }
 
-
+/*token is set with the first item in the line, and the function returns the place in the line were the next token begins*/
 int getNextToken(char *token, char *line) {
 	int tokenIndex=0;
 	int lineIndex=0;

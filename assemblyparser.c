@@ -9,6 +9,9 @@
 #include "./assemblyparser.h"
 
 
+
+/*this function goes over the algorithm from maman 14
+its a bit long but was not simple to break down*/
 int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) { 
 
 	/*internal function variables*/	
@@ -46,6 +49,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 			continue;
 		/*clean vars that need to be reused*/
 		lineDelta=0;
+		tempLineDelta=0;
 		memset(operandsToParse,'\0',MAXSTRLEN);
 		memset(tempString,'\0',MAXSTRLEN);
 		/*printf("DC=%d IC=%d\n",DC,IC);
@@ -65,6 +69,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 		/*stage 5 - check if this is a directive*/
 		mDirective = getDirective(nextToken);
 		if (mDirective) {
+			printf(" checknig directive\n");
 			lineDelta+=tempLineDelta;
 			if (mDirective==data || mDirective==string || mDirective==structlabel) {
 				/*printf("Directive=%s of type:%d ",token, mDirective);*/
@@ -73,6 +78,9 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 					/*update error flag according to result of PushLabel*/
 					cleanLabel(mCleanLabelName, mLabelName);
 					errorFlag = ! safePushLabel(labelsList, mCleanLabelName, DC, mDirective);
+					printf("just updated the labels:\n");
+					printf("the result of looking for the recently pushed label is %d\n", getAddressByName(labelsList, mLabelName));
+					printLabels(labelsList);
 				}
 			/*stage 7 - calculate data length and update update DC*/
 				printf("Operands: %s",line+lineDelta);
@@ -84,34 +92,40 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 					DC+=analyzedData.length;
 				}
 				if (mDirective==string) {
+					printf("in string directive\n");
 					errorFlag = ! cleanString(tempString, operandsToParse);
+					printf("Clean string: %s operandsToParse: %s error: %d\n", tempString, operandsToParse, errorFlag);
 					errorFlag += ! updateLabelString(labelsList, tempString, mCleanLabelName);
+					printf("Error flag after updateLabelString is: %d\n", errorFlag);
 					DC+=strlen(tempString);
 					DC++; /*to count the string terminator*/
 
 				}
 				if (mDirective==structlabel) {
-					printf("Entering getstruct to analyze: %s\n",operandsToParse);
 					errorFlag = ! getStruct(operandsToParse, &analyzedStruct);
-					printf("In assembly parser, struct is: %d,%s", analyzedStruct.number, analyzedStruct.data);
 					updateLabelStruct(labelsList, &analyzedStruct, mCleanLabelName);
 					DC+=analyzedStruct.length;
 				}
 				if (errorFlag) {
 					printf("ERROR: Aborting current parsing at line %d.Illegal directive operands: %s\n",lineNumber,operandsToParse );
 					break;
+				} else {
+					continue;
 				}
-				continue;
-			}
 
-			/*stage 8*/
-			if (!strcmp(token,".external")) {
-				/*stage 9 - map externals*/
-				printf("EXTERNAL!!!\n");
-				errorFlag = ! safePushLabel(labelsList, mCleanLabelName, 0, external);
 			}
+		}
+		/*stage 8*/
+		if (!strcmp(token,".extern")) {
+			/*stage 9 - map externals*/
+			getNextToken(nextToken,line+tempLineDelta);
+			cleanLabel(mCleanLabelName, nextToken);
+			errorFlag = ! safePushLabel(labelsList, mCleanLabelName, 0, external);
 			/*stage 10 - go back to the next line*/
-			continue;	
+			continue;
+		}
+		if (!strcmp(token,".entry")) {
+			continue;
 		}
 		/*stage 11*/
 		if (labelFlag) {
@@ -148,7 +162,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 int parseCommands(Command *commandList[], char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
 	char binaryString[MAXBITSINMUZAR*5];
 	int i,j;
-	for (i=0; i<256; i++) {
+	for (i=0; i<MAXMEMORY; i++) {
 		if (commandList[i]) {
 			memset(binaryString,'\0',MAXBITSINMUZAR*5);
 			commandToBin(binaryString, commandList[i], labels);
@@ -188,6 +202,30 @@ int parseLabels(char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
 	}
 	return TRUE;
 }
+
+int writeExternals(Command *commandList[], Label *labels, FILE *externalFile) {
+	int i;
+	char muzarAddress[3];
+	for (i=0; i<MAXMEMORY; i++) {
+		if (commandList[i]) {
+			addressToMuzar(muzarAddress, commandList[i]->IC + BASEADDRESS);
+			if (commandList[i]->operandNum >= 1){
+				if ((commandList[i]->Operand1.oprType==label) && (getTypeByName(&labels,commandList[i]->Operand1.label)==external))
+					printf("%s %s\n",muzarAddress, commandList[i]->Operand1.label);
+				if ((commandList[i]->Operand1.oprType==structtype) && (getTypeByName(&labels,commandList[i]->Operand1.label)==external))
+					printf("%s %s\n",muzarAddress, commandList[i]->Operand1.label);	
+			}
+			if (commandList[i]->operandNum==2) {
+				if ((commandList[i]->Operand2.oprType==label) && (getTypeByName(&labels,commandList[i]->Operand2.label)==external))
+					printf("%s %s\n",muzarAddress, commandList[i]->Operand2.label);
+				if ((commandList[i]->Operand2.oprType==structtype) && (getTypeByName(&labels,commandList[i]->Operand2.label)==external))
+					printf("%s %s\n",muzarAddress, commandList[i]->Operand2.label);
+			}
+		}
+	}
+	return TRUE;
+} 
+
 
 
 int assemblyParser(char  *baseFileName) {
@@ -231,15 +269,16 @@ int assemblyParser(char  *baseFileName) {
 	entryFile = fopen(entryFileName,"w");
 
 	if ((! outputFile) || (! externalFile) || (! entryFile)){
-		printf("FATAL: could not open outpuf files for writing. Terminating assembler.\n");
+		printf("FATAL: could not open output files for writing. Terminating assembler.\n");
 	}
 
 	/*parse*/
 	firstPass(inputFile, &mLabel, commandList);
 	parseCommands(commandList, binaryCodes, mLabel);
 	parseLabels(binaryCodes, mLabel);
-	/*printLabels(&mLabel);  for debugging*/
+	printLabels(&mLabel);  /*for debugging*/
 	printf("\n");
+	writeExternals(commandList, mLabel, externalFile);
 	i=0;
 	while(strlen(binaryCodes[i])==MAXBITSINMUZAR) {
 		binCommandToMuzar(binaryCodes[i], muzarCommand);

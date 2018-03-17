@@ -90,6 +90,7 @@ int getCommand(char *stringToParse, Command *command) {
 	int i=0;
 	int j=0;
 	char tempStr[MAXSTRLEN];
+	memset(tempStr,'\0',MAXSTRLEN);
 	/*sanity check*/
 	if (! stringToParse || ! command)
 		return FALSE;
@@ -144,7 +145,7 @@ int getCommand(char *stringToParse, Command *command) {
 	while(!stringToParse[i]=='\0' || isspace(stringToParse[i]))
 		i++;
 	if (!stringToParse[i]=='\0') {
-		printf("RESIDUE!!!\n");
+		printf("ERROR: Residue in line\n");
 		return FALSE;
 	}
 	command->operandNum=2;
@@ -455,6 +456,7 @@ int commandToBin(char *MuzarStr, Command *command, Label *labels) {
 
 int operandToBin(char *returnStr, Operand *operand, Label *labels) {
 	char tempStr[MAXBITSINMUZAR+1];
+	int labelAddress=0;
 	if (operand->oprType==reg) {
 		intToBin(returnStr, operand->regValue, 4);
 		/*0000 padding and ARE=00*/
@@ -468,9 +470,9 @@ int operandToBin(char *returnStr, Operand *operand, Label *labels) {
 		return TRUE;
 	}
 	if (operand->oprType==label) {
-		int labelAddress=getAddressByName(&labels, operand->label);
-		if (! labelAddress) {
-			printf("ERROR: Operand parsing failed. %s does not exist\n",operand->label);
+		labelAddress=getAddressByName(&labels, operand->label);
+		if (labelAddress==ADDRESSNOTFOUND) {
+			printf("ERROR: Operand parsing failed. String address %s does not exist\n",operand->label);
 			return FALSE;
 		}
 		intToBin(returnStr, labelAddress+100,8);
@@ -478,9 +480,9 @@ int operandToBin(char *returnStr, Operand *operand, Label *labels) {
 		return TRUE;
 	}
 	if (operand->oprType==structtype) {
-		int labelAddress=getAddressByName(&labels, operand->label);
-		if (! labelAddress) {
-			printf("ERROR: Operand parsing failed. %s does not exist\n",operand->label);
+		labelAddress=getAddressByName(&labels, operand->label);
+		if (labelAddress==ADDRESSNOTFOUND) {
+			printf("ERROR: Operand parsing failed. Struct address %s does not exist\n",operand->label);
 			return FALSE;
 		}
 		intToBin(returnStr, labelAddress+100,8);

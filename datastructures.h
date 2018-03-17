@@ -26,6 +26,7 @@ typedef struct label {
 
 int pushLabel(Label** head, char *newLabelName, int newLabelAddress, LabelType lType);
 int getAddressByName(Label **head, char *nameToSearch);
+int getTypeByName(Label **head, char *nameToSearch);
 int safePushLabel(Label **head, char *newLabelName, int newLabelAddress, LabelType lType);
 void printLabels(Label **head);
 int updateDataCounterLabels(Label **head, int IC);
