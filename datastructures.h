@@ -1,15 +1,26 @@
 #include "globaldefs.h"
 
-typedef enum labelType {
-        data=1,
-        command=2,
-} LabelType;
+#ifndef DATASTRUCTURES_INC
+#define DATASTRUCTURES_INC
+
+typedef struct aStruct {
+	char data[MAXMEMORY];
+	int number;
+	int length;
+} AStruct;
+
+typedef struct aData {
+	int data[80];
+	int length;
+} AData;
 
 
 typedef struct label {
 	char name[MAXSTRLEN];
 	int address;
 	LabelType type;
+	AData data;
+	AStruct aStruct;
 	struct label *next;
 } Label;
 
@@ -17,4 +28,11 @@ int pushLabel(Label** head, char *newLabelName, int newLabelAddress, LabelType l
 int getAddressByName(Label **head, char *nameToSearch);
 int safePushLabel(Label **head, char *newLabelName, int newLabelAddress, LabelType lType);
 void printLabels(Label **head);
-int updateDataLabels(Label **head, int IC);
+int updateDataCounterLabels(Label **head, int IC);
+int updateLabelData(Label **head, AData *aData, char *labelName);
+int updateLabelString(Label **head, char *stringValue, char *labelName);
+int updateLabelStruct(Label **head, AStruct *analyzedStruct, char *labelName);
+
+
+
+#endif /*DATASTRUCTURES_INC*/

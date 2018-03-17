@@ -129,6 +129,25 @@ int cleanString(char *cleanStr, char *strToClean) {
 	return TRUE;
 }
 
+
+/*removes non alnum characters (i.e. ':'') from the label. Assumes no spaces inside the label*/
+int cleanLabel(char *cleanLabel, char *labelToClean) {
+	int i=0;
+	int j=0;
+	/*sanity check for null pointer*/
+	if ((! labelToClean) || (! cleanLabel))
+		return FALSE;
+	while (labelToClean[i]!='\0') {
+		if (isalnum(labelToClean[i])) {
+			cleanLabel[j]=labelToClean[i];
+			j++;
+			}
+		i++;
+	}
+	cleanLabel[j]='\0';
+	return TRUE;
+}
+
 int cleanFromSpaces(char *cleanStr, char *strToClean) { 
 	int i=0;
 	int j=0;
@@ -137,7 +156,6 @@ int cleanFromSpaces(char *cleanStr, char *strToClean) {
 		return FALSE;
 	/*ignore leading white spaces*/
 	while(!strToClean[i]=='\0' && isspace(strToClean[i])) {
-		printf("%d",i);
 		i++;
 	}
 

@@ -1,12 +1,5 @@
-#define MAXOPERANDLENGTH 200
-typedef enum directive {
-        NotDirective=0,
-        DataDirective=1,
-        StringDirective=2,
-        StructDirective=3,
-        EntryDirective=4,
-	ExternalDirective=5
-} Directive;
+#include "./datastructures.h"
+#include "./globaldefs.h"
 
 typedef enum operation {
         error=-1,
@@ -70,21 +63,13 @@ typedef struct command {
 	int type;
         int operandNum;
         int IC;
+        int codeLine;
 } Command;
 
-typedef struct aStruct {
-	char data[MAXOPERANDLENGTH];
-	int number;
-	int length;
-} AStruct;
-
-typedef struct aData {
-	int data[80];
-	int length;
-} AData;
 
 
-Directive getDirective(char *stringToParse);
+
+LabelType getDirective(char *stringToParse);
 Operation getOperationFromToken(char *stringToParse);
 int getData(AData *dataToReturn, char *dataToParse);
 int getStruct(char *stringToParse, AStruct structToReturn);
@@ -95,5 +80,9 @@ int enrichOperand(Operand *operand);
 int clearCommand(Command *command);
 int requiredOperandNum(Command *command);
 int getAdditionalWordCount(Command *command);
-int commandToBin(char *MuzarStr, Command *command);
-int operandToBin(char *returnStr, Operand *operand);
+int commandToBin(char *MuzarStr, Command *command,  Label *labels);
+int operandToBin(char *returnStr, Operand *operand,  Label *labels);
+int getBinData(char *stringToReturn, AData *dataToParse);
+int getBinString(char *stringToReturn, char *dataToParse);
+int getBinStruct(char *binaryString, AStruct *structToParse);
+

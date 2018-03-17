@@ -1,28 +1,30 @@
-#include "./fileparserutils.h"
-#include "./stringparserutils.h"
 #include "./globaldefs.h"
+#include "./stringparserutils.h"
 #include "./conversions.h"
+#include "./fileparserutils.h"
+
+
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 
-Directive getDirective(char *stringToParse) {
+LabelType getDirective(char *stringToParse) {
 	if (! strcmp(stringToParse,".data"))
-		return DataDirective;
+		return data;
 
 	if (! strcmp(stringToParse,".string"))
-		return StringDirective;
+		return string;
 
 	if (! strcmp(stringToParse,".struct"))
-		return StructDirective;
+		return structlabel;
 
 	if (! strcmp(stringToParse,".entry"))
-		return EntryDirective;
+		return entry;
 	
 	if (! strcmp(stringToParse,".extern"))
-		return ExternalDirective;
+		return external;
 	return FALSE;
 }
 
@@ -106,6 +108,13 @@ int getCommand(char *stringToParse, Command *command) {
 	if (opToCheck==error)
 		return FALSE;
 	command->op = opToCheck;
+	command->operandNum=0;
+	/*ignore white spaces and check if no operands*/
+	while (isspace(stringToParse[i]))
+		i++;
+	if (stringToParse[i]=='\0')
+		return TRUE;
+
 	/*get the first operand*/
 	j=0;
 	while (stringToParse[i]!='\0' && stringToParse[i]!=',') {
@@ -158,20 +167,15 @@ int enrichOperand(Operand *operand) {
 		return TRUE;
 	}
 	operand->structFieldType = isStructField(operand->rawData,operand->label);
-	printf("string to clean:%s\n",operand->rawData);
 	if (operand->structFieldType) {
 		operand->oprType = structtype;
 		return TRUE;
 	}
 	strcpy(tempStr,operand->rawData);
-	printf("Checking if is a label\n");
 	if(isAddress(tempStr)) {
-		printf("Its a label!\n");
 		operand->oprType = label;
 		return TRUE;
 	}
-	printf("its not a label!\n");
-
 	return FALSE;
 }
 
@@ -179,17 +183,18 @@ int clearCommand(Command *command) {
 	if (!command)
 		return FALSE;
 	command->op=error;
+	command->operandNum=0;
 	command->Operand1.oprType=operror;
 	command->Operand2.oprType=operror;
 	command->Operand1.constValue=0;
 	command->Operand2.constValue=0;
 	command->Operand1.structFieldType=0;
 	command->Operand2.structFieldType=0;
+	command->codeLine=0;
 	memset(command->Operand1.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand1.label,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.label,'\0',MAXOPERANDLENGTH);
-
 	command->type=operror;
     command->operandNum=0;
     return TRUE;
@@ -206,7 +211,7 @@ int enrichCommand(Command *command) {
 
 /*for debugging only - print the command in human readable way*/
 void printCommand(Command *command) {
-	printf("Operation: %d   NumOfOperands=%d\n Operand1: '%s'    Operand2: '%s' \n", command->op
+	printf("__________________\nOperation: %d   NumOfOperands=%d\n Operand1: '%s'    Operand2: '%s' \n", command->op
 		, command->operandNum, command->Operand1.rawData, command->Operand2.rawData);
 	if (command->Operand1.oprType == reg)
 		printf(" Operand1: register:%d\n ", command->Operand1.regValue);
@@ -220,10 +225,6 @@ void printCommand(Command *command) {
 		printf(" Operand1: struct: label:%s field:%d\n", command->Operand1.label, command->Operand1.structFieldType);
 	if (command->Operand2.oprType == structtype)
 		printf(" Operand2: struct: label:%s field:%d\n", command->Operand2.label, command->Operand2.structFieldType);
-}
-
-int validateCommandOperators(Command *command) {
-	return TRUE;
 }
 
 
@@ -279,7 +280,7 @@ int requiredOperandNum(Command *command) {
 	return error;
 }
 
-/*builds a data struct from the data list operands list. Returns  FALSE if n0t valid*/
+/*builds a data struct from the data list operands list. Returns  FALSE if not valid*/
 int getData(AData *dataToReturn, char *dataToParse) {
 	char *token;
 	char s[2]=",";
@@ -313,9 +314,50 @@ int getData(AData *dataToReturn, char *dataToParse) {
 	return TRUE;
 }
 
+/*converts an array from an AData struct to a binary muzar representation*/
+int getBinData(char *stringToReturn, AData *dataToParse) {
+	int i;
+	if ((! stringToReturn) || (! dataToParse))
+		return FALSE;
+	char tempStr[MAXBITSINMUZAR+1];
+	for (i=0; i<dataToParse->length; i++) {
+		intToBin(tempStr,dataToParse->data[i],MAXBITSINMUZAR);
+		strcat(stringToReturn, tempStr);
+	}
+	return TRUE;
+}
+
+
+/*converts a string to a binary muzar representation*/
+int getBinString(char *stringToReturn, char *dataToParse) {
+	int i;
+	if ((! stringToReturn)|| (! dataToParse))
+		return FALSE;
+	char tempStr[MAXBITSINMUZAR+1];
+	for (i=0; i<strlen(dataToParse); i++) {
+		intToBin(tempStr, dataToParse[i], MAXBITSINMUZAR);
+		strcat(stringToReturn, tempStr);
+	} 
+	/*add the string terminator*/
+	strcat(stringToReturn, BINARYSTRINGTERMINATOR);
+	return TRUE;
+}
+
+/* converts a struct to binary muzar representation*/
+int getBinStruct(char *stringToReturn, AStruct *structToParse) {
+	char tempStr[MAXBITSINMUZAR*MAXMEMORY];
+	if ((! stringToReturn)|| (! structToParse))
+		return FALSE;
+	if (! getBinString(tempStr, structToParse->data))
+		return FALSE;
+	intToBin(stringToReturn, structToParse->number, MAXBITSINMUZAR);
+	strcat(stringToReturn, tempStr);
+	return TRUE;
+}
+
+
 
 int getStruct(char *structToParse, AStruct structToReturn) {
-	/*ignore leading spaces*/
 	int error;
 	char numStr[MAXSTRLEN];
 	char strStr[MAXSTRLEN];
@@ -333,13 +375,11 @@ int getStruct(char *structToParse, AStruct structToReturn) {
 	return TRUE;
 }
 
-int getAREBits(Command *command) {
-	return FALSE;
-
+int getString(char *stringToParse, AStruct structToReturn) {
+	return cleanString(structToReturn.data, stringToParse);
 }
 
-
-int commandToBin(char *MuzarStr, Command *command) {
+int commandToBin(char *MuzarStr, Command *command, Label *labels) {
 	char cmdBinStr[MAXBITSINMUZAR]="";
 	char cmdAddStr[MAXBITSINMUZAR]="";
 	char tempStr[20];
@@ -365,27 +405,92 @@ int commandToBin(char *MuzarStr, Command *command) {
 		if (command->Operand2.oprType==label)
 			addressing+=1;
 	}
-	printf("addressing is: %d\n",addressing);
 	intToBin(cmdAddStr,addressing,4);
 	strcat(MuzarStr,cmdAddStr);
+	/*always direct for commands*/
 	strcat(MuzarStr,"00");
-	if (command->operandNum==0)
+	/*no operands*/
+	if (command->operandNum==0) {
 		return TRUE;
-	if (command->operandNum==1) 
+	}
+	/*special case: two operands. Both are registers*/
+	if ((command->operandNum==2) && (command->Operand1.oprType==reg) && (command->Operand2.oprType==reg)){
 		memset(tempStr,'\0',20);
-		operandToBin(tempStr, &command->Operand1);
+		intToBin(tempStr,command->Operand1.regValue,4);
+		strcat(MuzarStr,tempStr);
+		intToBin(tempStr,command->Operand2.regValue,4);
+		strcat(MuzarStr,tempStr);
+		strcat(MuzarStr,"00");
+		return TRUE;
+	}
+	/*single operand*/
+	if (command->operandNum>=1) {
+		memset(tempStr,'\0',20);
+		if (! operandToBin(tempStr, &command->Operand1, labels)) {
+			printf("ERROR: Line %d: Command of type %d parsing failed. First operand failed parsing.\n", command->codeLine, command->op);
+			return FALSE;
+		}
+		strcat(MuzarStr,tempStr);
+		/*return only if completed evaluating operands*/
+		if (command->operandNum==1)
+			return TRUE;
+	}
+	if (command->operandNum==2) {
+		memset(tempStr,'\0',20);
+		if (! operandToBin(tempStr, &command->Operand2, labels)) {
+			printf("ERROR: Line %d: Command of type %d parsing failed. Second operand failed parsing\n", command->codeLine, command->op);
+			return FALSE;
+		}
 		strcat(MuzarStr,tempStr);
 		return TRUE;
-	return TRUE;
+	}
+	printf("ERROR: Line %d: Unknown error when evaluating command of type %d. Num of operands received %d\n", command->codeLine, command->op, command->operandNum);
+	return FALSE;
 }
 
 
-int operandToBin(char *returnStr, Operand *operand) {
+int operandToBin(char *returnStr, Operand *operand, Label *labels) {
+	char tempStr[MAXBITSINMUZAR+1];
 	if (operand->oprType==reg) {
 		intToBin(returnStr, operand->regValue, 4);
 		/*0000 padding and ARE=00*/
 		strcat(returnStr, "000000");
+		return TRUE;
 	}
+	if (operand->oprType==number) {
+		intToBin(returnStr, operand->constValue, 8);
+		/*ARE 00 for number*/
+		strcat(returnStr, "00");
+		return TRUE;
+	}
+	if (operand->oprType==label) {
+		int labelAddress=getAddressByName(&labels, operand->label);
+		if (! labelAddress) {
+			printf("ERROR: Operand parsing failed. %s does not exist\n",operand->label);
+			return FALSE;
+		}
+		intToBin(returnStr, labelAddress+100,8);
+		strcat(returnStr, "10");
+		return TRUE;
+	}
+	if (operand->oprType==structtype) {
+		int labelAddress=getAddressByName(&labels, operand->label);
+		if (! labelAddress) {
+			printf("ERROR: Operand parsing failed. %s does not exist\n",operand->label);
+			return FALSE;
+		}
+		intToBin(returnStr, labelAddress+100,8);
+		strcat(returnStr, "10");
+		intToBin(tempStr, operand->structFieldType,8);
+		strcat(returnStr,tempStr);
+		strcat(returnStr,"00");
+		return TRUE;
+	}
+	printf("ERROR: Operand type not recognized.\n");
+	return FALSE;
+}
+
+int dataToBin(char *returnStr, int dataToParse[]) {
 	return TRUE;
 }
 

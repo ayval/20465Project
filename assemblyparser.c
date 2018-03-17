@@ -9,10 +9,11 @@
 int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) { 
 
 	/*internal function variables*/	
-	Directive mDirective;
+	LabelType mDirective;
 	char line[MAXSTRLEN];
 	char token[MAXSTRLEN];
 	char mLabelName[MAXSTRLEN];
+	char mCleanLabelName[MAXSTRLEN];
 	int lineDelta=0;
 	int tempLineDelta=0;
 	int lineNumber=0;
@@ -40,15 +41,15 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 			continue;
 		if(isEmpty(line))
 			continue;
-		printf("DC=%d IC=%d\n",DC,IC);
-		printf("-----------------------------------------------------\n%s",line);
+		/*printf("DC=%d IC=%d\n",DC,IC);
+		printf("-----------------------------------------------------\n%s",line);*/
 		/*stage 3 - is the first item a label?*/
 		tempLineDelta = getNextToken(token,line);
 		if (isLabel(token)) {
 			lineDelta+=tempLineDelta;
 			labelFlag=TRUE;
 			strcpy(mLabelName, token);
-			printf("Label=%s\n",mLabelName);
+			/*printf("Label=%s\n",mLabelName);*/
 
 			/*stage 4 - check the label flag and move to the next token*/
 			labelFlag = TRUE;
@@ -58,38 +59,42 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 		mDirective = getDirective(token);
 		if (mDirective) {
 			lineDelta+=tempLineDelta;
-			if (mDirective==DataDirective || mDirective==StringDirective || mDirective==StructDirective) {
-				printf("Directive=%s of type:%d ",token, mDirective);
+			if (mDirective==data || mDirective==string || mDirective==structlabel) {
+				/*printf("Directive=%s of type:%d ",token, mDirective);*/
 				/*stage 6 - if there is a label, add it to the list*/
 				if (labelFlag) {
 					/*update error flag according to result of PushLabel*/
-					errorFlag = ! safePushLabel(labelsList, mLabelName, DC, data);
+					cleanLabel(mCleanLabelName, mLabelName);
+					errorFlag = ! safePushLabel(labelsList, mCleanLabelName, DC, mDirective);
 				}
 			/*stage 7 - calculate data length and update update DC*/
-				printf("Operands: %s",line+lineDelta);
+				/*printf("Operands: %s",line+lineDelta);*/
 				strcpy(operandsToParse, line+lineDelta);
-				if (mDirective==DataDirective) {
+				if (mDirective==data) {
+					/*TODO add better error handling*/
 					errorFlag = ! getData(&analyzedData, operandsToParse);
+					errorFlag += ! updateLabelData(labelsList, &analyzedData, mCleanLabelName);
 					DC+=analyzedData.length;
 				}
-				if (mDirective==StringDirective) {
-					if (! cleanString(tempString,operandsToParse)) {
-						errorFlag = TRUE;
-					}
+				if (mDirective==string) {
+					errorFlag = ! cleanString(tempString, operandsToParse);
+					errorFlag += ! updateLabelString(labelsList, tempString, mCleanLabelName);
 					DC+=strlen(tempString);
 					DC++; /*to count the string terminator*/
+
 				}
-				if (mDirective==StructDirective) {
+				if (mDirective==structlabel) {
 					errorFlag = getStruct(tempString, analyzedStruct);
+					updateLabelStruct(labelsList, &analyzedStruct, mCleanLabelName);
 					DC+=analyzedStruct.length;
 				}
 				if (errorFlag) {
-					printf("Error: Aborting current parsing at line %d.Illegal directive operands: %s\n",lineNumber,operandsToParse );
+					printf("ERROR: Aborting current parsing at line %d.Illegal directive operands: %s\n",lineNumber,operandsToParse );
 					break;
 				}
 			}
 			/*stage 8*/
-			if (mDirective==ExternalDirective) {
+			if (mDirective==external) {
 				/*stage 9 - do something*/
 			}
 			/*stage 10 - go back to the next line*/
@@ -97,15 +102,16 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 		}
 		/*stage 11*/
 		if (labelFlag) {
-			errorFlag = ! safePushLabel(labelsList, mLabelName,IC,command);
+			cleanLabel(mCleanLabelName, mLabelName);
+			errorFlag = ! safePushLabel(labelsList, mCleanLabelName,IC,command);
 		}
 		/*stage 12+13*/
 		/*analyze rest of data*/
 		analyzedCommand=(Command*)malloc(sizeof(Command));
-		printf("Command to parse: %s\n",line+lineDelta);
 		getCommand(line+lineDelta, analyzedCommand);
 		enrichCommand(analyzedCommand);
 		analyzedCommand->IC=IC;
+		analyzedCommand->codeLine=lineNumber;
 		printCommand(analyzedCommand);
 		commandList[commandCounter]=analyzedCommand;
 		commandCounter++;
@@ -120,28 +126,52 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 	}
 	/*fix the data labels with IC*/
 	if (! errorFlag) {
-		 printf("update data labels here\n");
-		 updateDataLabels(labelsList, IC);
+		 updateDataCounterLabels(labelsList, IC);
 
 	}
 	return errorFlag;
 }
 
-int parseCommands(Command *commandList[], char binaryCodes[][11]) {
-	char binaryString[50];
-	for (int i=0; i<256; i++) {
-		printf("i=%d\n",i);
+int parseCommands(Command *commandList[], char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
+	char binaryString[MAXBITSINMUZAR*5];
+	int i,j;
+	for (i=0; i<256; i++) {
 		if (commandList[i]) {
-			memset(binaryString,'\0',50);
-			printf("operation:%d\n",commandList[i]->op);
-			commandToBin(binaryString, commandList[i]);
+			memset(binaryString,'\0',MAXBITSINMUZAR*5);
+			commandToBin(binaryString, commandList[i], labels);
 			/*copy the command to the command list with its operands. 
 			+j/10 pushes the counter to the next word if needed*/
-			printf("before for\n");
-			for (int j=0; j<strlen(binaryString); j++) {
-				binaryCodes[commandList[i]->IC + j/10][j % 10] = binaryString[j];
+			for (j=0; j<strlen(binaryString); j++) {
+				binaryCodes[commandList[i]->IC + j/MAXBITSINMUZAR][j % MAXBITSINMUZAR] = binaryString[j];
 			}
 		}
+	}
+	return TRUE;
+}
+
+int parseLabels(char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
+	char binaryString[MAXBITSINMUZAR*MAXMEMORY];
+	int j;
+	memset(binaryString, '\0', MAXBITSINMUZAR*MAXMEMORY);
+	Label *temp=labels;
+	while (temp) {
+		/*parse the data from the label struct*/
+		memset(binaryString, '\0', MAXBITSINMUZAR*MAXMEMORY);
+		if (temp->type==data) {
+			getBinData(binaryString, &temp->data);
+		}
+		if (temp->type==string) {
+			getBinString(binaryString, temp->aStruct.data);
+		}
+		if (temp->type==structlabel) {
+			getBinStruct(binaryString, &temp->aStruct);
+			printf("struct bin: %s\n", binaryString);
+		}
+		/*add the parsed binary data to the binary array representing the memory*/
+		for (j=0; j<strlen(binaryString); j++) {
+			binaryCodes[temp->address + j/MAXBITSINMUZAR][j % MAXBITSINMUZAR] = binaryString[j];
+		}
+		temp=temp->next;
 	}
 	return TRUE;
 }
@@ -149,20 +179,23 @@ int parseCommands(Command *commandList[], char binaryCodes[][11]) {
 
 int main() {
 	Label *mLabel=NULL;
+	FILE *f;
 	Command *commandList[256];
 	char binaryCodes[256][11];
-	memset(binaryCodes,'\0',256*10);
-	for (int i=0; i<256; i++)
+	int i;
+	memset(binaryCodes,'\0',MAXMEMORY*(MAXBITSINMUZAR+1));
+	for (i=0; i<256; i++)
 		commandList[i]=NULL;
-	FILE *f = fopen("testdata1.txt","r");
+	f = fopen("testdata1.txt","r");
+
 	if (! f) {
 		printf("The file is null\n");
 	}
 	firstPass(f, &mLabel, commandList);
-	parseCommands(commandList, binaryCodes);
-	printf("after parse commands\n");
+	parseCommands(commandList, binaryCodes, mLabel);
+	parseLabels(binaryCodes, mLabel);
 	printLabels(&mLabel);
-	for (int i=0; i<30; i++)
-		printf("bin command: %s\n",binaryCodes[i]);
+	for (i=0; i<38; i++)
+		printf("%d : %s\n",i+100, binaryCodes[i]);
 	return 0;
 }

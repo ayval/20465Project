@@ -11,3 +11,4 @@ int splitStructLabel(char *structString, char *firstPart, char *secondPart);
 int isEmpty(char *stingToParse);
 int cleanFromSpaces(char *cleanStr, char *strToClean);
 int isAddress(char *stringToParse);
+int cleanLabel(char *cleanLabel, char *labelToClean);

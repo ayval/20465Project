@@ -58,7 +58,8 @@ char int2Base32(int int2convert) {
 
 int bin2Base32Digit(BinaryDigit bin2convert) {
 	int result=0;
-	for (int i=0; i<BITSINMUZAR; i++) {
+	int i;
+	for (i=0; i<BITSINMUZAR; i++) {
 		if (bin2convert[i]=='1') {
 			result+=mPow(2,BITSINMUZAR-1-i);
 		}
@@ -69,10 +70,10 @@ int bin2Base32Digit(BinaryDigit bin2convert) {
 
 /*return the binary string equivalent of a positive integer*/
 int intToBinPos(char *returnStr, int intValue, int numOfBits) {
+	int i;
 	/*safety check that a positive value was given*/
 	if (intValue<0)
 		return FALSE;
-	int i;
 	memset(returnStr,'0',numOfBits);
 
 	returnStr[numOfBits]='\0';
