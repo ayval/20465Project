@@ -72,7 +72,7 @@ typedef struct command {
 LabelType getDirective(char *stringToParse);
 Operation getOperationFromToken(char *stringToParse);
 int getData(AData *dataToReturn, char *dataToParse);
-int getStruct(char *stringToParse, AStruct structToReturn);
+int getStruct(char *stringToParse, AStruct *structToReturn);
 int getCommand(char *string, Command *command);
 void printCommand(Command *command);
 int enrichCommand(Command *command);

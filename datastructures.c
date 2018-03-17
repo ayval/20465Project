@@ -94,7 +94,7 @@ void printLabels(Label **head) {
 			printf(" struct: number: %d string: %s\n", temp->aStruct.number, temp->aStruct.data);
 		}
 		if (temp->type==string) {
-			printf(" string: %s", temp->aStruct.data);
+			printf(" string: %s\n", temp->aStruct.data);
 		}
 		temp=temp->next;
 	}
@@ -137,6 +137,7 @@ int updateLabelString(Label **head, char *stringValue, char *labelName) {
 			strcpy(temp->aStruct.data, stringValue);
 			return TRUE;
 		}
+		temp=temp->next;
 	}
 	return FALSE;
 }
@@ -145,16 +146,20 @@ int updateLabelString(Label **head, char *stringValue, char *labelName) {
 int updateLabelStruct(Label **head, AStruct *analyzedStruct, char *labelName) {
 	Label *temp;	
 	/*sanity check for empty list*/
+	printf("inside struct update\n");
 	if (*head==NULL) {
 		return FALSE;
 	}
+	printf("inside struct update after sanity\n");
 	temp = *head;
 	while (temp) {
 		if (! strcmp(temp->name,labelName)) {
+			printf("label: %s the analyzed struct data is: %d, %s\n", labelName, analyzedStruct->number, analyzedStruct->data);
 			strcpy(temp->aStruct.data, analyzedStruct->data);
 			temp->aStruct.number = analyzedStruct->number;
 			return TRUE;
 		}
+		temp=temp->next;
 	}
 	return FALSE;
 }

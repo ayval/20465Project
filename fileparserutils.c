@@ -357,21 +357,25 @@ int getBinStruct(char *stringToReturn, AStruct *structToParse) {
 
 
 
-int getStruct(char *structToParse, AStruct structToReturn) {
+int getStruct(char *structToParse, AStruct *structToReturn) {
 	int error;
 	char numStr[MAXSTRLEN];
 	char strStr[MAXSTRLEN];
+	printf("Inside getStruct for splitting: %s\n",structToParse);
 	error = splitStructLabel(structToParse, numStr, strStr);
-	if (! error) 
+	if (! error)
 		return FALSE;
-	error = cleanString(structToReturn.data, strStr);
+	printf("after splitStructLabel");
+	error = cleanString(structToReturn->data, strStr);
 	if (! error)
 		return FALSE;
 	if (! isNumber(numStr))
 		return FALSE;
-	structToReturn.number=atoi(numStr);
+	printf("after data checks\n");
+	structToReturn->number=atoi(numStr);
+	printf("inside getstruct. number: %d string: %s\n" ,structToReturn->number, structToReturn->data);
 	/*the struct data length is the string + 1 for terminator and 1 for the number*/
-	structToReturn.length = strlen(structToReturn.data) +2;
+	structToReturn->length = strlen(structToReturn->data) +2;
 	return TRUE;
 }
 

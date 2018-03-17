@@ -191,14 +191,17 @@ int getNextToken(char *token, char *line) {
 int splitString(char *structString, char *firstPart, char *secondPart, char delimiter) {
 	int i=0;
 	int j=0;
-	/*copy the fits part*/
-	while (structString[i]!=',' && structString[i]!='\0'){
+	printf("going to split: %s\n",structString);
+	/*copy the firts part*/
+	while (structString[i]!=delimiter && structString[i]!='\0'){
 		firstPart[i]=structString[i];
 		i++;
 	}
 	/*sanity check that there are 2 parts*/
-	if (structString[i]=='\0')
+	if (structString[i]=='\0') {
+		printf("there is ONLY ONE PART\n");
 		return FALSE;
+	}
 	/*add the null on account of the comma*/
 	firstPart[i]='\0';
 	i++;
@@ -212,7 +215,10 @@ int splitString(char *structString, char *firstPart, char *secondPart, char deli
 }
 
 int splitStructLabel(char *structString, char *firstPart, char *secondPart) {
-	return splitString(structString, firstPart, secondPart, ',');
+	int error;
+	error = splitString(structString, firstPart, secondPart, ',');
+	printf ("first part: %s seconds part: %s\n", firstPart, secondPart);
+	return error;
 }
 
 /* returns the field number. 1 for the string, 2 for the integer, 0 is an error occursed. The structName as a reference

@@ -35,12 +35,15 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 	/*int L=0;*/
 	/*stage 2 - read next line from file*/
 	while (fgets(line, MAXSTRLEN, aFile)) {
-		lineDelta=0;
 		lineNumber++;
 		if (isComment(line))
 			continue;
 		if(isEmpty(line))
 			continue;
+		/*clean vars that need to be reused*/
+		lineDelta=0;
+		memset(operandsToParse,'\0',MAXSTRLEN);
+		memset(tempString,'\0',MAXSTRLEN);
 		/*printf("DC=%d IC=%d\n",DC,IC);
 		printf("-----------------------------------------------------\n%s",line);*/
 		/*stage 3 - is the first item a label?*/
@@ -68,7 +71,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 					errorFlag = ! safePushLabel(labelsList, mCleanLabelName, DC, mDirective);
 				}
 			/*stage 7 - calculate data length and update update DC*/
-				/*printf("Operands: %s",line+lineDelta);*/
+				printf("Operands: %s",line+lineDelta);
 				strcpy(operandsToParse, line+lineDelta);
 				if (mDirective==data) {
 					/*TODO add better error handling*/
@@ -84,7 +87,9 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 
 				}
 				if (mDirective==structlabel) {
-					errorFlag = getStruct(tempString, analyzedStruct);
+					printf("Entering getstruct to analyze: %s\n",operandsToParse);
+					errorFlag = ! getStruct(operandsToParse, &analyzedStruct);
+					printf("In assembly parser, struct is: %d,%s", analyzedStruct.number, analyzedStruct.data);
 					updateLabelStruct(labelsList, &analyzedStruct, mCleanLabelName);
 					DC+=analyzedStruct.length;
 				}
