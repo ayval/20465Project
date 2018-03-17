@@ -68,6 +68,13 @@ int bin2Base32Digit(BinaryDigit bin2convert) {
 
 }
 
+int binCommandToMuzar(char *binCommand, char*muzarCommand) {
+	muzarCommand[0] = bin2Base32Digit(binCommand);
+	muzarCommand[1] = bin2Base32Digit(binCommand+BITSINMUZAR);
+	muzarCommand[2] = '\0';
+	return TRUE;
+}
+
 /*return the binary string equivalent of a positive integer*/
 int intToBinPos(char *returnStr, int intValue, int numOfBits) {
 	int i;
@@ -96,16 +103,14 @@ int intToBin(char *returnStr, int intValue, int numOfBits) {
 	return intToBinPos(returnStr, mPow(2,numOfBits)+intValue,numOfBits);
 }
 
-
-/*
-int main() {
-	char testData[20];
-	intToBin(testData,-5,8);
-	printf("-5=%s\n",testData);	
-	printf("2**8 is: %d\n",mPow(2,8));
+int addressToMuzar(char *returnStr, int address) {
+	address = address % (32*32); /*just to sanitize incorrect data*/
+	returnStr[0]=int2Base32(address/32);
+	returnStr[1]=int2Base32(address%32);
+	returnStr[2]='\0';
+	return TRUE;
 }
 
-*/
 
 
 

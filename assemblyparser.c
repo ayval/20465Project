@@ -3,8 +3,11 @@
 #include "fileparserutils.h"
 #include "datastructures.h"
 #include "stringparserutils.h"
+#include "conversions.h"
 #include <string.h>
 #include <stdlib.h>
+#include "./assemblyparser.h"
+
 
 int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) { 
 
@@ -12,6 +15,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 	LabelType mDirective;
 	char line[MAXSTRLEN];
 	char token[MAXSTRLEN];
+	char nextToken[MAXSTRLEN];
 	char mLabelName[MAXSTRLEN];
 	char mCleanLabelName[MAXSTRLEN];
 	int lineDelta=0;
@@ -56,10 +60,10 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 
 			/*stage 4 - check the label flag and move to the next token*/
 			labelFlag = TRUE;
-			tempLineDelta = getNextToken(token,line+lineDelta);
+			tempLineDelta = getNextToken(nextToken,line+lineDelta);
 		}
 		/*stage 5 - check if this is a directive*/
-		mDirective = getDirective(token);
+		mDirective = getDirective(nextToken);
 		if (mDirective) {
 			lineDelta+=tempLineDelta;
 			if (mDirective==data || mDirective==string || mDirective==structlabel) {
@@ -97,10 +101,14 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 					printf("ERROR: Aborting current parsing at line %d.Illegal directive operands: %s\n",lineNumber,operandsToParse );
 					break;
 				}
+				continue;
 			}
+
 			/*stage 8*/
-			if (mDirective==external) {
-				/*stage 9 - do something*/
+			if (!strcmp(token,".external")) {
+				/*stage 9 - map externals*/
+				printf("EXTERNAL!!!\n");
+				errorFlag = ! safePushLabel(labelsList, mCleanLabelName, 0, external);
 			}
 			/*stage 10 - go back to the next line*/
 			continue;	
@@ -182,25 +190,69 @@ int parseLabels(char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
 }
 
 
-int main() {
-	Label *mLabel=NULL;
-	FILE *f;
-	Command *commandList[256];
-	char binaryCodes[256][11];
+int assemblyParser(char  *baseFileName) {
 	int i;
+	Label *mLabel=NULL;
+	Command *commandList[MAXMEMORY];
+	char binaryCodes[MAXMEMORY][MAXBITSINMUZAR+1];
+	char muzarCommand[3];
+	char muzarAddress[3];
+	char parsedInputFileName[MAXSTRLEN];
+	char parsedOutputFileName[MAXSTRLEN];
+	char externalFileName[MAXSTRLEN];
+	char entryFileName[MAXSTRLEN];
+	FILE *inputFile;
+	FILE *outputFile;
+	FILE *externalFile;
+	FILE *entryFile;
+	printf("going to parse: %s\n", baseFileName);
+	/*reset some memory to be sure no garbage*/
 	memset(binaryCodes,'\0',MAXMEMORY*(MAXBITSINMUZAR+1));
 	for (i=0; i<256; i++)
 		commandList[i]=NULL;
-	f = fopen("testdata1.txt","r");
 
-	if (! f) {
-		printf("The file is null\n");
+	/*check file exists*/
+	strcpy(parsedInputFileName,baseFileName);
+	strcat(parsedInputFileName,".as");
+	inputFile = fopen(parsedInputFileName,"r");
+	if (! inputFile) {
+		printf("ERROR: Failed to open file: %s\n",baseFileName);
+		return FALSE;
 	}
-	firstPass(f, &mLabel, commandList);
+	strcpy(parsedOutputFileName, baseFileName);
+	strcpy(externalFileName, baseFileName);
+	strcpy(entryFileName, baseFileName);
+	strcat(parsedOutputFileName, ".ob");
+	strcat(externalFileName,".ext");
+	strcat(entryFileName,".int");
+
+	outputFile = fopen(parsedOutputFileName,"w");
+	externalFile = fopen(externalFileName,"w");
+	entryFile = fopen(entryFileName,"w");
+
+	if ((! outputFile) || (! externalFile) || (! entryFile)){
+		printf("FATAL: could not open outpuf files for writing. Terminating assembler.\n");
+	}
+
+	/*parse*/
+	firstPass(inputFile, &mLabel, commandList);
 	parseCommands(commandList, binaryCodes, mLabel);
 	parseLabels(binaryCodes, mLabel);
-	printLabels(&mLabel);
-	for (i=0; i<38; i++)
-		printf("%d : %s\n",i+100, binaryCodes[i]);
-	return 0;
+	/*printLabels(&mLabel);  for debugging*/
+	printf("\n");
+	i=0;
+	while(strlen(binaryCodes[i])==MAXBITSINMUZAR) {
+		binCommandToMuzar(binaryCodes[i], muzarCommand);
+		addressToMuzar(muzarAddress,i+100);
+		printf("%s : %s   %s\n",muzarAddress, binaryCodes[i], muzarCommand);
+		fprintf(outputFile,"%s %s\n",muzarAddress,muzarCommand);
+		i++;
+	}
+
+
+	fclose(outputFile);
+	fclose(inputFile);
+	fclose(externalFile);
+	fclose(entryFile);
+	return TRUE;
 }

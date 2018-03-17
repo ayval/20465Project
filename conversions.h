@@ -11,3 +11,5 @@ char int2Base32(int int2convert);
 int bin2Base32Digit(BinaryDigit bin2convert);
 int intToBinPos(char *returnStr, int intValue, int numOfBits);
 int intToBin(char *returnStr, int intValue, int numOfBits);
+int binCommandToMuzar(char *binCommand, char*muzarCommand);
+int addressToMuzar(char *returnStr, int address);
