@@ -33,6 +33,7 @@ int updateDataCounterLabels(Label **head, int IC);
 int updateLabelData(Label **head, AData *aData, char *labelName);
 int updateLabelString(Label **head, char *stringValue, char *labelName);
 int updateLabelStruct(Label **head, AStruct *analyzedStruct, char *labelName);
+int freeLabels(Label **head);
 
 
 

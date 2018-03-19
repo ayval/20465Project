@@ -11,6 +11,8 @@
 
 
 LabelType getDirective(char *stringToParse) {
+	if (! stringToParse)
+		return FALSE;
 	if (! strcmp(stringToParse,".data"))
 		return data;
 
@@ -83,75 +85,38 @@ Reg getRegisterFromToken(char *stringToParse) {
 	return regerror;
 }
 
-/*get the operator and operands as strings and places them in the command struct*/
+
+/*parses a string with a format of a command and places the raw data and operator in a command struct*/
 int getCommand(char *stringToParse, Command *command) {
-	char checkStr[MAXSTRLEN];
-	Operation opToCheck;
-	int i=0;
-	int j=0;
-	char tempStr[MAXSTRLEN];
-	memset(tempStr,'\0',MAXSTRLEN);
-	/*sanity check*/
-	if (! stringToParse || ! command)
+	char *ptrToken;
+	int opToCheck;
+	if (! command)
+		return FALSE;
+	if (! stringToParse)
 		return FALSE;
 	clearCommand(command);
-	/*ignore leading white spaces*/
-	while (isspace(stringToParse[i]))
-		i++;
-	/*copy the first word as the command and leave the rest as operands*/
-	while (stringToParse[i] && ! isspace(stringToParse[i])) {
-		checkStr[j]=stringToParse[i];
-		i++;
-		j++;
-	}
-	checkStr[j]='\0';
-	opToCheck = getOperationFromToken(checkStr);
+	ptrToken = strtok(stringToParse," ,\t\n");
+	opToCheck = getOperationFromToken(ptrToken);
 	if (opToCheck==error)
 		return FALSE;
 	command->op = opToCheck;
 	command->operandNum=0;
-	/*ignore white spaces and check if no operands*/
-	while (isspace(stringToParse[i]))
-		i++;
-	if (stringToParse[i]=='\0')
-		return TRUE;
-
-	/*get the first operand*/
-	j=0;
-	while (stringToParse[i]!='\0' && stringToParse[i]!=',') {
-		tempStr[j]=stringToParse[i];
-		i++;
-		j++;
-	}
-	cleanFromSpaces(command->Operand1.rawData,tempStr);
-	if (stringToParse[i]=='\0') {
+	ptrToken = strtok(NULL," ,\t\n");
+	if (ptrToken!=NULL) {
+		strcpy(command->Operand1.rawData,ptrToken);
 		command->operandNum=1;
+	} else 
 		return TRUE;
+	ptrToken = strtok(NULL," ,\t\n");
+	if (ptrToken!=NULL) {
+		strcpy(command->Operand2.rawData,ptrToken);
+		command->operandNum=2;
 	}
-
-	/*get the second operand*/
-	j=0;
-	i++;
-	memset(tempStr,'\0',MAXSTRLEN);
-	while (stringToParse[i]!='\0' && stringToParse[i]!=',') {
-		/*command->Operand2.rawData[j]*/
-
-		tempStr[j]=stringToParse[i];
-		i++;
-		j++;
-	}
-	cleanFromSpaces(command->Operand2.rawData,tempStr);
-	/*check for remaining data*/
-	while(!stringToParse[i]=='\0' || isspace(stringToParse[i]))
-		i++;
-	if (!stringToParse[i]=='\0') {
-		printf("ERROR: Residue in line\n");
-		return FALSE;
-	}
-	command->operandNum=2;
 	return TRUE;
+
 }
 
+/*adds data to the operand struct accordibng to the rawdata*/
 int enrichOperand(Operand *operand) {
 	char tempStr[MAXOPERANDLENGTH];
 	if (! operand)
@@ -191,11 +156,14 @@ int clearCommand(Command *command) {
 	command->Operand2.constValue=0;
 	command->Operand1.structFieldType=0;
 	command->Operand2.structFieldType=0;
+	command->Operand1.regValue=0;
+	command->Operand2.regValue=0;
 	command->codeLine=0;
 	memset(command->Operand1.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.rawData,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand1.label,'\0',MAXOPERANDLENGTH);
 	memset(command->Operand2.label,'\0',MAXOPERANDLENGTH);
+	command->IC=0;
 	command->type=operror;
     command->operandNum=0;
     return TRUE;
@@ -306,7 +274,7 @@ int getData(AData *dataToReturn, char *dataToParse) {
 			dataToReturn->data[counter]=atoi(token);
 			counter++;
 		} else {
-			if (! token=='\0') {
+			if (! (token=='\0')) {
 				return FALSE;
 			}
 		}
@@ -318,9 +286,9 @@ int getData(AData *dataToReturn, char *dataToParse) {
 /*converts an array from an AData struct to a binary muzar representation*/
 int getBinData(char *stringToReturn, AData *dataToParse) {
 	int i;
+	char tempStr[MAXBITSINMUZAR+1];
 	if ((! stringToReturn) || (! dataToParse))
 		return FALSE;
-	char tempStr[MAXBITSINMUZAR+1];
 	for (i=0; i<dataToParse->length; i++) {
 		intToBin(tempStr,dataToParse->data[i],MAXBITSINMUZAR);
 		strcat(stringToReturn, tempStr);
@@ -332,9 +300,9 @@ int getBinData(char *stringToReturn, AData *dataToParse) {
 /*converts a string to a binary muzar representation*/
 int getBinString(char *stringToReturn, char *dataToParse) {
 	int i;
+		char tempStr[MAXBITSINMUZAR+1];
 	if ((! stringToReturn)|| (! dataToParse))
 		return FALSE;
-	char tempStr[MAXBITSINMUZAR+1];
 	for (i=0; i<strlen(dataToParse); i++) {
 		intToBin(tempStr, dataToParse[i], MAXBITSINMUZAR);
 		strcat(stringToReturn, tempStr);
@@ -347,6 +315,7 @@ int getBinString(char *stringToReturn, char *dataToParse) {
 /* converts a struct to binary muzar representation*/
 int getBinStruct(char *stringToReturn, AStruct *structToParse) {
 	char tempStr[MAXBITSINMUZAR*MAXMEMORY];
+	memset(tempStr,'\0', MAXBITSINMUZAR*MAXMEMORY);
 	if ((! stringToReturn)|| (! structToParse))
 		return FALSE;
 	if (! getBinString(tempStr, structToParse->data))
@@ -362,19 +331,15 @@ int getStruct(char *structToParse, AStruct *structToReturn) {
 	int error;
 	char numStr[MAXSTRLEN];
 	char strStr[MAXSTRLEN];
-	printf("Inside getStruct for splitting: %s\n",structToParse);
 	error = splitStructLabel(structToParse, numStr, strStr);
 	if (! error)
 		return FALSE;
-	printf("after splitStructLabel");
 	error = cleanString(structToReturn->data, strStr);
 	if (! error)
 		return FALSE;
 	if (! isNumber(numStr))
 		return FALSE;
-	printf("after data checks\n");
 	structToReturn->number=atoi(numStr);
-	printf("inside getstruct. number: %d string: %s\n" ,structToReturn->number, structToReturn->data);
 	/*the struct data length is the string + 1 for terminator and 1 for the number*/
 	structToReturn->length = strlen(structToReturn->data) +2;
 	return TRUE;
@@ -475,7 +440,7 @@ int operandToBin(char *returnStr, Operand *operand, Label *labels) {
 			printf("ERROR: Operand parsing failed. String address %s does not exist\n",operand->label);
 			return FALSE;
 		}
-		intToBin(returnStr, labelAddress+100,8);
+		intToBin(returnStr, labelAddress+BASEADDRESS,8);
 		strcat(returnStr, "10");
 		return TRUE;
 	}
@@ -495,8 +460,3 @@ int operandToBin(char *returnStr, Operand *operand, Label *labels) {
 	printf("ERROR: Operand type not recognized.\n");
 	return FALSE;
 }
-
-int dataToBin(char *returnStr, int dataToParse[]) {
-	return TRUE;
-}
-

@@ -148,14 +148,38 @@ int cleanLabel(char *cleanLabel, char *labelToClean) {
 	return TRUE;
 }
 
+
+int trimwhitespace(char *str)
+{
+  char *end;
+
+  /*Trim leading space */
+  while(isspace((unsigned char)*str)) str++;
+
+  if(*str == 0)  /* All spaces?*/
+    return FALSE;
+
+  /* Trim trailing space*/
+  end = str + strlen(str) - 1;
+  while(end > str && isspace((unsigned char)*end)) end--;
+
+  /* Write new null terminator */
+  *(end+1) = 0;
+
+  return TRUE;
+}
+
+
+
 int cleanFromSpaces(char *cleanStr, char *strToClean) { 
 	int i=0;
 	int j=0;
+	printf("strtoclean-->%s<-----\n",strToClean);
 	/*sanity check for null pointer*/
 	if (! strToClean || strToClean[0]=='\0')
 		return FALSE;
 	/*ignore leading white spaces*/
-	while(!strToClean[i]=='\0' && isspace(strToClean[i])) {
+	while(!(strToClean[i]=='\0') && isspace(strToClean[i])) {
 		i++;
 	}
 
@@ -167,6 +191,7 @@ int cleanFromSpaces(char *cleanStr, char *strToClean) {
 		j++;
 	}
 	cleanStr[j]='\0';
+	printf("the clean string---->%s<----\n",cleanStr);
 	return TRUE;
 }
 
@@ -176,7 +201,7 @@ int getNextToken(char *token, char *line) {
 	int lineIndex=0;
 	while(isspace(line[lineIndex]))
 		lineIndex++;
-	while(!line[lineIndex]=='\0' && !isspace(line[lineIndex])) {
+	while(!(line[lineIndex]=='\0') && !isspace(line[lineIndex])) {
 		token[tokenIndex]=line[lineIndex];
 		tokenIndex++;
 		lineIndex++;
@@ -191,7 +216,6 @@ int getNextToken(char *token, char *line) {
 int splitString(char *structString, char *firstPart, char *secondPart, char delimiter) {
 	int i=0;
 	int j=0;
-	printf("going to split: %s\n",structString);
 	/*copy the firts part*/
 	while (structString[i]!=delimiter && structString[i]!='\0'){
 		firstPart[i]=structString[i];
@@ -199,7 +223,6 @@ int splitString(char *structString, char *firstPart, char *secondPart, char deli
 	}
 	/*sanity check that there are 2 parts*/
 	if (structString[i]=='\0') {
-		printf("there is ONLY ONE PART\n");
 		return FALSE;
 	}
 	/*add the null on account of the comma*/
@@ -217,7 +240,6 @@ int splitString(char *structString, char *firstPart, char *secondPart, char deli
 int splitStructLabel(char *structString, char *firstPart, char *secondPart) {
 	int error;
 	error = splitString(structString, firstPart, secondPart, ',');
-	printf ("first part: %s seconds part: %s\n", firstPart, secondPart);
 	return error;
 }
 

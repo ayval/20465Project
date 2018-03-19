@@ -1,3 +1,10 @@
+/* this is the main of the assembler program
+Author: Ayval Ron (alone...) 
+ID: 034539833
+Completed on 19/3/2018
+*/
+
+
 #include "./assemblyparser.h"
 #include <stdio.h>
 
@@ -9,4 +16,5 @@ int main(int argc, char *argv[]) {
 	}
 	for (i=1; i<argc; i++)
 		assemblyParser(argv[i]);
+	return 0;
 }

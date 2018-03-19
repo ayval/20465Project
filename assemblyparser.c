@@ -17,12 +17,11 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 	/*internal function variables*/	
 	LabelType mDirective;
 	char line[MAXSTRLEN];
-	char token[MAXSTRLEN];
-	char nextToken[MAXSTRLEN];
+	char tempLine[MAXSTRLEN];
+	char *ptrToken;
+	char *firstToken;
 	char mLabelName[MAXSTRLEN];
 	char mCleanLabelName[MAXSTRLEN];
-	int lineDelta=0;
-	int tempLineDelta=0;
 	int lineNumber=0;
 	int commandCounter=0;
 	AStruct analyzedStruct;
@@ -42,61 +41,49 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 	/*int L=0;*/
 	/*stage 2 - read next line from file*/
 	while (fgets(line, MAXSTRLEN, aFile)) {
+
 		lineNumber++;
 		if (isComment(line))
 			continue;
 		if(isEmpty(line))
 			continue;
+		strcpy(tempLine,line);
+		ptrToken = strtok(tempLine," \t\n");  /*the first token*/
+		firstToken = ptrToken;
 		/*clean vars that need to be reused*/
-		lineDelta=0;
-		tempLineDelta=0;
+		mDirective=errorlabel;
 		memset(operandsToParse,'\0',MAXSTRLEN);
 		memset(tempString,'\0',MAXSTRLEN);
-		/*printf("DC=%d IC=%d\n",DC,IC);
-		printf("-----------------------------------------------------\n%s",line);*/
 		/*stage 3 - is the first item a label?*/
-		tempLineDelta = getNextToken(token,line);
-		if (isLabel(token)) {
-			lineDelta+=tempLineDelta;
+		if (isLabel(ptrToken)) {
 			labelFlag=TRUE;
-			strcpy(mLabelName, token);
-			/*printf("Label=%s\n",mLabelName);*/
+			strcpy(mLabelName, ptrToken);
 
-			/*stage 4 - check the label flag and move to the next token*/
+			/*stage 4 - set the label flag and move to the next token*/
 			labelFlag = TRUE;
-			tempLineDelta = getNextToken(nextToken,line+lineDelta);
+			ptrToken = strtok(NULL," \t\n");
 		}
 		/*stage 5 - check if this is a directive*/
-		mDirective = getDirective(nextToken);
+		mDirective = getDirective(ptrToken);
 		if (mDirective) {
-			printf(" checknig directive\n");
-			lineDelta+=tempLineDelta;
 			if (mDirective==data || mDirective==string || mDirective==structlabel) {
-				/*printf("Directive=%s of type:%d ",token, mDirective);*/
 				/*stage 6 - if there is a label, add it to the list*/
 				if (labelFlag) {
 					/*update error flag according to result of PushLabel*/
 					cleanLabel(mCleanLabelName, mLabelName);
 					errorFlag = ! safePushLabel(labelsList, mCleanLabelName, DC, mDirective);
-					printf("just updated the labels:\n");
-					printf("the result of looking for the recently pushed label is %d\n", getAddressByName(labelsList, mLabelName));
-					printLabels(labelsList);
 				}
 			/*stage 7 - calculate data length and update update DC*/
-				printf("Operands: %s",line+lineDelta);
-				strcpy(operandsToParse, line+lineDelta);
+				ptrToken = strtok(NULL,"");
+				strcpy(operandsToParse,ptrToken);
 				if (mDirective==data) {
-					/*TODO add better error handling*/
 					errorFlag = ! getData(&analyzedData, operandsToParse);
 					errorFlag += ! updateLabelData(labelsList, &analyzedData, mCleanLabelName);
 					DC+=analyzedData.length;
 				}
 				if (mDirective==string) {
-					printf("in string directive\n");
 					errorFlag = ! cleanString(tempString, operandsToParse);
-					printf("Clean string: %s operandsToParse: %s error: %d\n", tempString, operandsToParse, errorFlag);
 					errorFlag += ! updateLabelString(labelsList, tempString, mCleanLabelName);
-					printf("Error flag after updateLabelString is: %d\n", errorFlag);
 					DC+=strlen(tempString);
 					DC++; /*to count the string terminator*/
 
@@ -116,30 +103,47 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 			}
 		}
 		/*stage 8*/
-		if (!strcmp(token,".extern")) {
+		if (!strcmp(firstToken,".extern")) {
 			/*stage 9 - map externals*/
-			getNextToken(nextToken,line+tempLineDelta);
-			cleanLabel(mCleanLabelName, nextToken);
+			firstToken = strtok(NULL,"");
+			cleanLabel(mCleanLabelName, firstToken);
 			errorFlag = ! safePushLabel(labelsList, mCleanLabelName, 0, external);
 			/*stage 10 - go back to the next line*/
 			continue;
 		}
-		if (!strcmp(token,".entry")) {
+		if (!strcmp(firstToken,".entry")) {
 			continue;
 		}
 		/*stage 11*/
 		if (labelFlag) {
 			cleanLabel(mCleanLabelName, mLabelName);
+
 			errorFlag = ! safePushLabel(labelsList, mCleanLabelName,IC,command);
 		}
 		/*stage 12+13*/
 		/*analyze rest of data*/
-		analyzedCommand=(Command*)malloc(sizeof(Command));
-		getCommand(line+lineDelta, analyzedCommand);
+		analyzedCommand=(Command*)calloc(1,sizeof(Command));
+		if (labelFlag) {
+			strcpy(tempLine,line);
+			ptrToken = strtok(tempLine," \t\n");
+			ptrToken = strtok(NULL,"");
+			getCommand(ptrToken, analyzedCommand);
+		} else {
+			strcpy(tempLine,line);
+			ptrToken = strtok(tempLine," \r\n");
+			if (ptrToken)
+				strcat(tempString,ptrToken);
+			ptrToken = strtok(NULL,"\n");
+			if (ptrToken) {
+				strcat(tempString," ");
+				strcat(tempString,ptrToken);
+			}
+			getCommand(tempString,analyzedCommand);
+		}
+
 		enrichCommand(analyzedCommand);
 		analyzedCommand->IC=IC;
 		analyzedCommand->codeLine=lineNumber;
-		printCommand(analyzedCommand);
 		commandList[commandCounter]=analyzedCommand;
 		commandCounter++;
 		IC=IC+1+getAdditionalWordCount(analyzedCommand);
@@ -156,6 +160,7 @@ int firstPass(FILE *aFile , Label **labelsList, Command *commandList[]) {
 		 updateDataCounterLabels(labelsList, IC);
 
 	}
+
 	return errorFlag;
 }
 
@@ -179,7 +184,6 @@ int parseCommands(Command *commandList[], char binaryCodes[][MAXBITSINMUZAR+1], 
 int parseLabels(char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
 	char binaryString[MAXBITSINMUZAR*MAXMEMORY];
 	int j;
-	memset(binaryString, '\0', MAXBITSINMUZAR*MAXMEMORY);
 	Label *temp=labels;
 	while (temp) {
 		/*parse the data from the label struct*/
@@ -192,7 +196,6 @@ int parseLabels(char binaryCodes[][MAXBITSINMUZAR+1], Label *labels) {
 		}
 		if (temp->type==structlabel) {
 			getBinStruct(binaryString, &temp->aStruct);
-			printf("struct bin: %s\n", binaryString);
 		}
 		/*add the parsed binary data to the binary array representing the memory*/
 		for (j=0; j<strlen(binaryString); j++) {
@@ -211,22 +214,51 @@ int writeExternals(Command *commandList[], Label *labels, FILE *externalFile) {
 			addressToMuzar(muzarAddress, commandList[i]->IC + BASEADDRESS);
 			if (commandList[i]->operandNum >= 1){
 				if ((commandList[i]->Operand1.oprType==label) && (getTypeByName(&labels,commandList[i]->Operand1.label)==external))
-					printf("%s %s\n",muzarAddress, commandList[i]->Operand1.label);
+					fprintf(externalFile,"%s %s\n",muzarAddress, commandList[i]->Operand1.label);
 				if ((commandList[i]->Operand1.oprType==structtype) && (getTypeByName(&labels,commandList[i]->Operand1.label)==external))
-					printf("%s %s\n",muzarAddress, commandList[i]->Operand1.label);	
+					fprintf(externalFile,"%s %s\n",muzarAddress, commandList[i]->Operand1.label);	
 			}
 			if (commandList[i]->operandNum==2) {
 				if ((commandList[i]->Operand2.oprType==label) && (getTypeByName(&labels,commandList[i]->Operand2.label)==external))
-					printf("%s %s\n",muzarAddress, commandList[i]->Operand2.label);
+					fprintf(externalFile,"%s %s\n",muzarAddress, commandList[i]->Operand2.label);
 				if ((commandList[i]->Operand2.oprType==structtype) && (getTypeByName(&labels,commandList[i]->Operand2.label)==external))
-					printf("%s %s\n",muzarAddress, commandList[i]->Operand2.label);
+					fprintf(externalFile,"%s %s\n",muzarAddress, commandList[i]->Operand2.label);
 			}
 		}
 	}
 	return TRUE;
 } 
 
-
+int getEntries (FILE *inputFile, FILE *entryFile, Label **head) {
+	char *ptrToken;
+	char line[MAXSTRLEN];
+	char cleanLabelName[MAXSTRLEN];
+	char binAddress[3];
+	int lineCounter=0;
+	int address=0;
+	while (fgets(line, MAXSTRLEN, inputFile)) {
+		lineCounter++;
+		ptrToken=strtok(line," \t\n");
+		if (ptrToken==NULL)
+			continue;
+		if (!strcmp(ptrToken,".entry")) {
+			ptrToken=strtok(NULL," \t\n");
+			if (ptrToken==NULL) {
+				printf("ERROR: Incorect entry label at line %d\n", lineCounter);
+				continue;
+			}
+			cleanLabel(cleanLabelName, ptrToken);
+			address = getAddressByName(head, cleanLabelName);
+			if (address==-1) {
+				printf("ERROR: Label not found for entry directive at line %d\n", lineCounter);
+				continue;
+			}
+			addressToMuzar(binAddress, address+BASEADDRESS);
+			fprintf(entryFile, "%s %s\n", cleanLabelName, binAddress);
+		}
+	}
+	return TRUE;
+}
 
 int assemblyParser(char  *baseFileName) {
 	int i;
@@ -243,10 +275,10 @@ int assemblyParser(char  *baseFileName) {
 	FILE *outputFile;
 	FILE *externalFile;
 	FILE *entryFile;
-	printf("going to parse: %s\n", baseFileName);
+	/*printf("going to parse: %s\n", baseFileName);*/
 	/*reset some memory to be sure no garbage*/
 	memset(binaryCodes,'\0',MAXMEMORY*(MAXBITSINMUZAR+1));
-	for (i=0; i<256; i++)
+	for (i=0; i<MAXMEMORY; i++)
 		commandList[i]=NULL;
 
 	/*check file exists*/
@@ -262,7 +294,7 @@ int assemblyParser(char  *baseFileName) {
 	strcpy(entryFileName, baseFileName);
 	strcat(parsedOutputFileName, ".ob");
 	strcat(externalFileName,".ext");
-	strcat(entryFileName,".int");
+	strcat(entryFileName,".ent");
 
 	outputFile = fopen(parsedOutputFileName,"w");
 	externalFile = fopen(externalFileName,"w");
@@ -276,22 +308,25 @@ int assemblyParser(char  *baseFileName) {
 	firstPass(inputFile, &mLabel, commandList);
 	parseCommands(commandList, binaryCodes, mLabel);
 	parseLabels(binaryCodes, mLabel);
-	printLabels(&mLabel);  /*for debugging*/
-	printf("\n");
 	writeExternals(commandList, mLabel, externalFile);
 	i=0;
 	while(strlen(binaryCodes[i])==MAXBITSINMUZAR) {
 		binCommandToMuzar(binaryCodes[i], muzarCommand);
-		addressToMuzar(muzarAddress,i+100);
-		printf("%s : %s   %s\n",muzarAddress, binaryCodes[i], muzarCommand);
+		addressToMuzar(muzarAddress,i+BASEADDRESS);
 		fprintf(outputFile,"%s %s\n",muzarAddress,muzarCommand);
 		i++;
 	}
+	rewind(inputFile);
+	getEntries(inputFile, entryFile, &mLabel);
 
+	for (i=0; i<MAXMEMORY; i++) 
+		free(commandList[i]);
 
+	freeLabels(&mLabel);
 	fclose(outputFile);
 	fclose(inputFile);
 	fclose(externalFile);
 	fclose(entryFile);
+	printf("Finished parsing %s\n",parsedInputFileName);
 	return TRUE;
 }

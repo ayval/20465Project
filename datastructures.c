@@ -6,10 +6,9 @@
 /*Adds a new label to the head of the linked list*/
 int pushLabel(Label** head, char *newLabelName, int newLabelAddress, LabelType lType)
 {
-	printf("entered push label\n");
 	/*Allocate memory for the new label*/
-	Label *newLabel = (Label *)malloc(sizeof(Label));
-	
+	Label *newLabel = (Label *)calloc(1,sizeof(Label));
+
 	/*Sanity check that malloc succeeded*/
 	if (! newLabel) {
 		return FALSE;
@@ -73,12 +72,10 @@ int getTypeByName(Label **head, char *nameToSearch) {
 
 /*Safe add of a label. Make sure there are no double references*/
 int safePushLabel(Label **head, char *newLabelName, int newLabelAddress, LabelType lType) {
-	int result;
+	int result=FALSE;
 	if (getAddressByName(head, newLabelName)==ADDRESSNOTFOUND) {
-		printf("trying to safe push ->%s<-checked and address was not found\n", newLabelName);
 		result = pushLabel(head, newLabelName, newLabelAddress, lType);
 	}
-	printf ("address was found for ->%s<- so di not push\n",newLabelName);
 	return result;
 }
 
@@ -190,6 +187,23 @@ int updateLabelStruct(Label **head, AStruct *analyzedStruct, char *labelName) {
 		temp=temp->next;
 	}
 	return FALSE;
+}
+
+
+int freeLabels(Label **head) {
+	Label *temp;
+	Label *prev;
+	/*sanity check for empty list*/
+	if (*head==NULL) {
+		return FALSE;
+	}
+	temp = *head;
+	while (temp) {
+		prev = temp;
+		temp=temp->next;
+		free(prev);
+	}
+	return TRUE;
 }
 
 /*

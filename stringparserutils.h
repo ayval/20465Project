@@ -12,3 +12,4 @@ int isEmpty(char *stingToParse);
 int cleanFromSpaces(char *cleanStr, char *strToClean);
 int isAddress(char *stringToParse);
 int cleanLabel(char *cleanLabel, char *labelToClean);
+int trimwhitespace(char *str);
